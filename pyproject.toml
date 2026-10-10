@@ -1,0 +1,148 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dartfx-nada"
+dynamic = ["version"]
+description = "A Python toolkit for interacting with IHSN NADA repositories"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+keywords = ["nada", "ihsn", "ddi", "research-data", "microdata", "metadata", "survey-data"]
+authors = [{ name = "kulnor", email = "pascal.heus@gmail.com" }]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: Implementation :: CPython",
+]
+dependencies = [
+  "pydantic>=2.10.0",
+  "python-dotenv>=1.0.0",
+  "requests>=2.32.0",
+  "requests-cache>=1.0.0",
+  "typer>=0.24.0",
+  "rich>=14.0.0",
+]
+
+[project.scripts]
+dartfx-nada = "dartfx.nada.cli:app"
+
+[project.urls]
+Documentation = "https://github.com/DataArtifex/nada-toolkit#readme"
+Issues = "https://github.com/DataArtifex/nada-toolkit/issues"
+Source = "https://github.com/DataArtifex/nada-toolkit"
+
+
+[tool.hatch.build.targets.sdist]
+exclude = ["/.github", "/docs"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dartfx"]
+
+[tool.hatch.version]
+path = "src/dartfx/nada/__about__.py"
+
+[dependency-groups]
+dev = [
+  "coverage[toml]>=7.0.0",
+  "pytest>=9",
+  "pytest-benchmark>=5.0.0",
+  "pyrefly>=1.0.0",
+  "python-dotenv>=1.0.0",
+  "ruff>=0.3.0",
+  "pre-commit>=4.0.0",
+  "types-requests>=2.32.4.20260107",
+]
+docs = [
+  "sphinx>=8.0.0",
+  "sphinx-rtd-theme>=3.0.0",
+  "myst-parser>=4.0.0",
+  "sphinx-copybutton>=0.5.2",
+]
+
+[tool.hatch.envs.default]
+dependencies = ["dev"]
+[tool.hatch.envs.default.scripts]
+test = "pytest {args:tests}"
+test-cov = "coverage run -m pytest {args:tests}"
+cov-report = ["- coverage combine", "coverage report"]
+cov = ["test-cov", "cov-report"]
+
+[[tool.hatch.envs.all.matrix]]
+python = ["3.12", "3.13"]
+
+[tool.hatch.envs.types]
+dependencies = ["dev"]
+[tool.hatch.envs.types.scripts]
+check = "pyrefly check {args:src tests}"
+
+[tool.hatch.envs.docs]
+dependencies = ["docs"]
+[tool.hatch.envs.docs.scripts]
+build = "sphinx-build -b html docs/source docs/build/html"
+serve = "python -m http.server -d docs/build/html"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.coverage.run]
+source_pkgs = ["dartfx.nada", "tests"]
+branch = true
+parallel = true
+omit = ["src/dartfx/nada/__about__.py"]
+
+[tool.coverage.paths]
+source = ["src/dartfx/nada", "*/nada-toolkit/src/dartfx/nada"]
+tests = ["tests"]
+
+[tool.coverage.report]
+exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
+
+[tool.pytest.ini_options]
+pythonpath = "src"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = ["--strict-markers", "--strict-config", "-ra"]
+log_cli = true
+log_cli_level = "DEBUG"
+log_cli_format = "%(asctime)s [%(levelname)s] %(message)s (%(filename)s:%(lineno)s)"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "B",   # flake8-bugbear
+  "C4",  # flake8-comprehensions
+  "UP",  # pyupgrade
+  "ARG", # flake8-unused-arguments
+  "PT",  # flake8-pytest-style
+]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["dartfx"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.pyrefly]
+search-path = ["src"]
+python-version = "3.12.0"
+preset = "default"
+ignore-missing-imports = ["*"]

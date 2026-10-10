@@ -1,0 +1,31 @@
+# install with uv run --with pre-commit pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: scripts/precommit_uv_run.sh ruff check --fix
+        language: system
+        types: [python]
+
+      - id: ruff-format
+        name: ruff-format
+        entry: scripts/precommit_uv_run.sh ruff format
+        language: system
+        types: [python]
+
+      - id: pyrefly
+        name: pyrefly
+        entry: scripts/precommit_uv_run.sh pyrefly check src tests
+        language: system
+        pass_filenames: false
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-toml
+      - id: check-merge-conflict
