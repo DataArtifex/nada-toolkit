@@ -242,6 +242,7 @@ def test_cli_harvest_help() -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["harvest", "--help"])
     assert result.exit_code == 0
-    assert "--server" in result.stdout
-    assert "--dry-run" in result.stdout
-    assert "--limit" in result.stdout
+    clean_output = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", result.stdout)
+    assert "--server" in clean_output
+    assert "--dry-run" in clean_output
+    assert "--limit" in clean_output
