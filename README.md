@@ -3,6 +3,7 @@
 [![Development Status](https://img.shields.io/badge/status-beta-orange.svg)](https://github.com/DataArtifex/nada-toolkit)
 [![Documentation](https://img.shields.io/badge/docs-blue)](https://www.dataartifex.org/docs/dartfx-nada/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/DataArtifex/nada-toolkit)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
@@ -152,11 +153,14 @@ dartfx-nada harvest --server microdata.worldbank.org --dry-run
 Benchmark and inspect live server status:
 
 # Display live study counts across servers
+
 dartfx-nada stats
 
 # Inspect servers in a specific country (forcing live bypass of 24h cache)
+
 dartfx-nada stats --country UG --refresh
-```
+
+````
 
 #### Interpreting the Status Column
 
@@ -191,7 +195,7 @@ dartfx-nada errors --by-server
 
 # Show detailed failed study IDs and failure reasons
 dartfx-nada errors --server catalog.ihsn.org --details
-```
+````
 
 ---
 
