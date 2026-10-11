@@ -6,6 +6,33 @@ All notable changes to this project will be documented in this file.
 The format is based on `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_,
 and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
 
+[0.4.0] - 2026-10-11
+--------------------
+
+Added
+~~~~~
+
+* **Multi-Threaded Harvester Engine** (``dartfx-nada harvest``):
+  * Concurrent worker execution (``--workers`` / ``-w``, default: 4) using ``ThreadPoolExecutor`` with thread-safe manifest tracking, error recording, file writes, and Rich progress visualization.
+  * Stabilized download progress bar layout by anchoring server name on the left, fixing bar/count/timer widths, and placing the active filename on the right-hand side to eliminate visual shifting.
+  * Fixed harvest timer display by resetting progress state upon transition from catalog discovery to study synchronization and using ``TimeElapsedColumn`` for active stopwatch timing.
+  * Cumulative catalog cache merging and partial-cache expansion handling, ensuring higher ``--limit`` requests query live servers while retaining previously cached studies.
+  * Comprehensive harvest error persistence in ``.manifest.json`` ensuring both transient (recoverable) and permanent failures are captured, queryable via ``dartfx-nada errors``, and automatically retried on subsequent runs.
+* **Expanded Metadata Standards**:
+  * Added support for MLCommons Croissant (``croissant``) and Google Dataset Search Schema.org (``schema`` / ``.schema.jsonld``) in ``dartfx-nada study`` and metadata harvester subsystem (``--formats schema``).
+  * New export methods on ``NadaServer``: ``get_study_croissant()`` and ``get_study_schema()``.
+* **Server Discovery & Registry Improvements**:
+  * Added ``list`` command as the preferred command for discovering NADA servers, with ``installations`` retained as a backwards-compatible alias.
+  * Active clickable hyperlinks and CSV/JSON output formatting in ``dartfx-nada list``.
+* **Diagnostic & Resilience Enhancements**:
+  * Abbreviated status error badges (e.g. ``SSL Hostname Mismatch``, ``Connection Failure``, ``Timeout (10s)``) replacing verbose connection pool stack traces in ``dartfx-nada stats``.
+  * Domain parking / domain-for-sale detection and strict JSON/CSV payload validation in server stats probing.
+  * Streamlined stats table layout by removing the redundant Collections column in favor of Studies, Latency, and Status.
+  * Fixed study count extraction for NADA v4 servers (e.g., ``nada.stat.cm``, ``microdata.statistics.gov.rw``) by parsing catalog search count containers in catalog HTML.
+  * Bidirectional HTTP/HTTPS protocol resilience: Automatic fallback to HTTP on SSL verification failures with recovered study counts (``HTTP (SSL Failed)``), and HTTPS availability probes for legacy HTTP servers with upgrade recommendations (``Online (HTTPS Avail)``).
+  * Enriched ``dartfx-nada info`` command displaying organization name, catalog URL, detected version, live/cached total study count, collections count, protocol health advisory, and a comprehensive Supported Metadata & Export Formats matrix.
+  * Comprehensive Server Status & Diagnostics documentation in ``IMPLEMENTATION.md``, ``README.md``, and Sphinx docs (``docs/source/diagnostics.md``).
+
 [0.2.0] - 2026-10-10
 --------------------
 

@@ -11,6 +11,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from dartfx.nada.__about__ import __version__
 from dartfx.nada.harvester import harvest as _harvest_cmd
 from dartfx.nada.nada import (
     NadaServer,
@@ -43,6 +44,28 @@ app = typer.Typer(
     add_completion=False,
 )
 console = Console()
+
+
+def _version_callback(value: bool) -> None:
+    if value:
+        console.print(f"dartfx-nada {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: Annotated[
+        bool | None,
+        typer.Option(
+            "--version",
+            "-V",
+            help="Show the version and exit.",
+            callback=_version_callback,
+            is_eager=True,
+        ),
+    ] = None,
+) -> None:
+    """CLI for discovering and interacting with IHSN NADA repositories."""
 
 
 class OutputFormat(StrEnum):

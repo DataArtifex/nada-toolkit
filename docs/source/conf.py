@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath("../.."))
 project = "Data Artifex NADA Toolkit"
 copyright = "2024, Pascal Heus"
 author = "Pascal Heus"
-release = "0.2.0"
+release = "0.4.0"
 
 
 # -- General configuration ---------------------------------------------------

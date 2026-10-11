@@ -110,3 +110,14 @@ def test_cli_stats_command_flags() -> None:
     assert "--cache-ttl" in clean_output
     assert "--timeout" in clean_output
     assert "-t" in clean_output
+
+
+def test_cli_version_flag() -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0
+    assert "0.4.0" in result.stdout
+
+    result_short = runner.invoke(app, ["-V"])
+    assert result_short.exit_code == 0
+    assert "0.4.0" in result_short.stdout
