@@ -24,13 +24,15 @@ NADA (National Data Archive) is an open-source data cataloging system widely use
 
 - 🌍 **Worldwide Server Discovery**: Registry engine supporting known NADA deployments worldwide, with ISO 3166-1 alpha-2 country crosswalk and filtering.
 - 🔍 **Catalog Search**: Comprehensive search client with support for keyword queries, collection filters, date ranges, and sorting.
-- 📦 **Multi-Format Export & Retrieval**: Retrieve study metadata in DDI CodeBook 2.5 XML (`ddi`), NADA study metadata JSON (`json`), and documentation / external resources (`resources`).
+- 📦 **Multi-Format Export & Retrieval**: Retrieve study metadata in DDI CodeBook 2.5 XML (`ddi`), NADA study metadata JSON (`json`), documentation / external resources (`resources`), MLCommons Croissant (`croissant`), and Google Dataset Search Schema.org (`schema`).
 - 🚜 **Resilient Incremental Harvester**:
+  - Concurrent multi-threaded execution (`--workers` / `-w`, default: 4) with thread-safe tracking and Rich progress visualization.
   - Incremental diff synchronization (Additions, Updates, Deletions) backed by `.manifest.json`.
   - SHA-256 integrity verification and fast timestamp matching.
   - Automatic 24-hour catalog caching (`.catalog_cache.json`) and statistics caching (`.stats_cache.json`).
   - Automated API token discovery (`.api_token`, `.nada_tokens.json`, environment variables).
   - Intelligent Error Classification Engine categorizing network, authentication, restricted study, WAF, and SSL/TLS diagnostics.
+  - Comprehensive error persistence in `.manifest.json` with automatic retry of recoverable failures on consecutive syncs.
 - 📊 **Server Diagnostics & Performance Latency**: Parallel query latency benchmarking with semantic color badges (`⚡`, `🟢`, `🟡`, `🔴`, `🔒`, `❌`).
 - 🛡️ **Modern Architecture**: Python 3.12+, Pydantic v2 data models, Typer CLI, and Rich terminal visualizers.
 
@@ -175,17 +177,20 @@ The `stats` table displays latency ratings and diagnostic status badges:
 Inspect error logs across harvested repository directories:
 
 ```bash
-# Show summary of errors per error category
-dartfx-nada errors ./repository
+# Show summary of errors across all servers (defaults to DARTFX_NADA_REPOSITORY or ./repository)
+dartfx-nada errors
+
+# Filter errors by server
+dartfx-nada errors --server catalog.ihsn.org
 
 # Matrix breakdown by metadata format
-dartfx-nada errors ./repository --by-format
+dartfx-nada errors --by-format
 
 # Breakdown by server
-dartfx-nada errors ./repository --by-server
+dartfx-nada errors --by-server
 
-# Show detailed failed study IDs and reasons
-dartfx-nada errors ./repository --details
+# Show detailed failed study IDs and failure reasons
+dartfx-nada errors --server catalog.ihsn.org --details
 ```
 
 ---
@@ -263,9 +268,11 @@ repository/
 │   ├── .catalog_cache.json     # 24-hour study discovery cache
 │   ├── MWI_2019_IHS_V_v01_M/
 │   │   └── metadata/
-│   │       ├── ddi.xml         # DDI 2.5 CodeBook XML
-│   │       ├── nada.json       # Study metadata JSON
-│   │       └── resources.json  # External resources JSON
+│   │       ├── ddi.xml          # DDI 2.5 CodeBook XML
+│   │       ├── nada.json        # Study metadata JSON
+│   │       ├── resources.json   # External resources JSON
+│   │       ├── croissant.jsonld # MLCommons Croissant JSON-LD
+│   │       └── schema.jsonld    # Google Dataset Search Schema.org JSON-LD
 ```
 
 ---

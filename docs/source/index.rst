@@ -15,9 +15,9 @@ Key Capabilities
 
 * 🌍 **Worldwide Server Discovery**: Registry engine supporting known NADA deployments worldwide, with ISO 3166-1 alpha-2 country crosswalk and filtering.
 * 🔍 **Catalog Search**: Comprehensive search client with support for keyword queries, collection filters, date ranges, and sorting.
-* 📦 **Multi-Format Export & Retrieval**: Retrieve study metadata in DDI CodeBook 2.5 XML (``ddi``), NADA study metadata JSON (``json``), and documentation / external resources (``resources``).
-* 🚜 **Resilient Incremental Harvester**: Incremental diff synchronization backed by ``.manifest.json``, fast timestamp matching, SHA-256 verification, and 24-hour catalog caching.
-* 📊 **Server Diagnostics & Performance Latency**: Parallel query latency benchmarking with semantic color badges.
+* 📦 **Multi-Format Export & Retrieval**: Retrieve study metadata in DDI CodeBook 2.5 XML (``ddi``), NADA study metadata JSON (``json``), documentation / external resources (``resources``), MLCommons Croissant (``croissant``), and Google Dataset Search Schema.org (``schema``).
+* 🚜 **Resilient Incremental Harvester**: Multi-threaded concurrent synchronization (``--workers`` / ``-w``) backed by ``.manifest.json``, fast timestamp matching, SHA-256 integrity verification, 24-hour catalog caching, and comprehensive error persistence with automatic recoverable failure retries.
+* 📊 **Server Diagnostics & Performance Latency**: Parallel query latency benchmarking with semantic color badges and deep SSL/TLS diagnostics.
 * 🛡️ **Modern Architecture**: Python 3.12+, Pydantic v2 data models, Typer CLI, and Rich terminal visualizers.
 
 .. toctree::
