@@ -5,6 +5,7 @@ from dotenv import find_dotenv, load_dotenv
 
 from .harvester import (
     ServerHarvester,
+    abbreviate_error,
     analyze_harvest_errors,
     classify_harvest_error,
     display_server_stats,
@@ -41,6 +42,7 @@ __all__ = [
     "SearchParameters",
     "ServerInstallation",
     "ServerHarvester",
+    "abbreviate_error",
     "analyze_harvest_errors",
     "classify_harvest_error",
     "display_server_stats",

@@ -3,10 +3,11 @@ import json
 import os
 import sys
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 import typer
 from dotenv import find_dotenv, load_dotenv
+from rich import box
 from rich.console import Console
 from rich.table import Table
 
@@ -14,7 +15,6 @@ from dartfx.nada.harvester import harvest as _harvest_cmd
 from dartfx.nada.nada import (
     NadaServer,
     SearchParameters,
-    ServerInstallation,
     fetch_nada_installations,
 )
 
@@ -54,12 +54,12 @@ class OutputFormat(StrEnum):
 def get_server(hostname: str | None = None, api_key: str | None = None) -> NadaServer:
     """Helper to create a NadaServer instance."""
     resolved_host = hostname or os.environ.get("NADA_SERVER") or "microdata.worldbank.org"
-    installation = ServerInstallation(hostname=resolved_host)
-    return NadaServer(server=installation, api_key=api_key)
+    return NadaServer(server=resolved_host, api_key=api_key)
 
 
-@app.command()
-def installations(
+@app.command(name="list")
+@app.command(name="installations", help="Alias for 'list'. List known worldwide NADA installations.")
+def list_installations(
     country: Annotated[
         str | None,
         typer.Option(
@@ -128,6 +128,10 @@ def installations(
     console.print(table)
 
 
+# Backward compatibility alias
+installations = list_installations
+
+
 @app.command()
 def info(
     hostname: Annotated[
@@ -147,11 +151,11 @@ def info(
         ),
     ] = None,
 ) -> None:
-    """Get information about a specific NADA server."""
+    """Get rich information, catalog metrics, and export formats for a NADA server."""
     resolved_host = hostname or os.environ.get("NADA_SERVER") or "microdata.worldbank.org"
     server = get_server(resolved_host, api_key)
 
-    with console.status(f"[bold green]Fetching info from {resolved_host}..."):
+    with console.status(f"[bold green]Fetching info from {server.installation.clean_hostname}..."):
         try:
             ver = server.detect_server_version()
             collections = server.get_collections()
@@ -159,16 +163,131 @@ def info(
             console.print(f"[bold red]Error:[/] {e}")
             raise typer.Exit(code=1) from e
 
-    console.print(f"\n[bold cyan]Server:[/] {server.installation.clean_hostname}")
-    console.print(f"[bold cyan]URL:[/] {server.url}")
-    console.print(f"[bold cyan]Detected Version:[/] v{ver}")
+        # Query total studies count and protocol health
+        studies_count: int | None = None
+        st: dict[str, Any] = {}
+        try:
+            if ver == 5:
+                params = SearchParameters(ps=1)
+                search_res = server.search(params)
+                if isinstance(search_res, dict):
+                    res = search_res.get("result", {})
+                    if isinstance(res, dict):
+                        studies_count = res.get("total", len(res.get("rows", [])))
+                    elif isinstance(res, list):
+                        studies_count = len(res)
+            from dartfx.nada.harvester import fetch_server_stats
+
+            host_to_probe = server.url if server.installation.scheme == "http" else server.installation.clean_hostname
+            st = fetch_server_stats(host_to_probe, api_token=api_key)
+            if studies_count is None and st.get("studies"):
+                studies_count = st.get("studies")
+        except Exception:
+            pass
 
     coll_count = 0
     if isinstance(collections, list):
         coll_count = len(collections)
     elif isinstance(collections, dict) and "result" in collections:
-        coll_count = len(collections["result"])
-    console.print(f"[bold cyan]Available Collections:[/] {coll_count}")
+        res = collections["result"]
+        coll_count = len(res) if isinstance(res, (list, dict)) else 0
+    elif isinstance(collections, dict) and "collections" in collections:
+        res = collections["collections"]
+        coll_count = len(res) if isinstance(res, list) else 0
+
+    table = Table(
+        title=f"NADA Server: {server.installation.clean_hostname}",
+        box=box.ROUNDED,
+        title_style="bold cyan",
+        show_header=False,
+    )
+    table.add_column("Property", style="bold white", width=24)
+    table.add_column("Value", style="cyan")
+
+    if server.installation.name and server.installation.name != server.installation.clean_hostname:
+        table.add_row("Organization / Name", server.installation.name)
+    table.add_row("Server Hostname", server.installation.clean_hostname)
+    table.add_row("Catalog Base URL", f"[link={server.url}]{server.url}[/link]")
+    table.add_row("Detected Version", f"v{ver}")
+    table.add_row(
+        "Total Studies",
+        f"{studies_count:,}" if studies_count is not None else "[dim]Unknown / Unreachable[/dim]",
+    )
+    table.add_row("Available Collections", f"{coll_count:,}" if coll_count > 0 else "0 (None or Not Exposed)")
+    if server.installation.country:
+        country_display = server.installation.country
+        if server.installation.country_code:
+            country_display += f" ({server.installation.country_code})"
+        table.add_row("Country", country_display)
+
+    if st.get("http_fallback"):
+        table.add_row(
+            "Protocol Status",
+            f"[yellow]HTTP Fallback (HTTPS SSL Failed: {st.get('ssl_error', 'SSL Failed')})[/yellow]",
+        )
+        table.add_row(
+            "Protocol Advisory",
+            "[dim yellow]Notice: Reached via HTTP fallback because HTTPS failed SSL verification.[/dim yellow]",
+        )
+    elif st.get("https_upgrade_recommended"):
+        adv_msg = (
+            "[bold green]HTTPS is available and functional! Recommend switching URL "
+            f"from HTTP to https://{server.installation.clean_hostname}[/bold green]"
+        )
+        table.add_row("Protocol Advisory", adv_msg)
+
+    console.print()
+    console.print(table)
+
+    fmt_table = Table(
+        title="Supported Metadata & Export Formats",
+        box=box.ROUNDED,
+        title_style="bold green",
+        header_style="bold yellow",
+    )
+    fmt_table.add_column("Format", style="bold cyan", width=22)
+    fmt_table.add_column("Flag / Key", style="magenta", width=12)
+    fmt_table.add_column("API Route", style="dim white", width=30)
+    fmt_table.add_column("Description", style="white")
+
+    fmt_table.add_row(
+        "DDI 2.5 XML",
+        "ddi",
+        "/catalog/ddi/{id}",
+        "Data Documentation Initiative CodeBook 2.5 XML specification",
+    )
+    fmt_table.add_row(
+        "Study JSON",
+        "json",
+        "/catalog/json/{id}",
+        "Comprehensive study metadata, sampling, and variable JSON",
+    )
+    fmt_table.add_row(
+        "External Resources",
+        "resources",
+        "/catalog/resources/{id}",
+        "Questionnaires, technical reports, and survey documentation",
+    )
+    fmt_table.add_row(
+        "Catalog CSV Export",
+        "csv",
+        "/catalog/export/csv",
+        "Bulk tabular catalog index export (IDNO, Title, Nation)",
+    )
+    fmt_table.add_row(
+        "MLCommons Croissant",
+        "croissant",
+        "/catalog/croissant/{id}",
+        "AI/ML-ready JSON-LD dataset format (World Bank Metadata Editor standard)",
+    )
+    fmt_table.add_row(
+        "Schema.org Dataset",
+        "schema",
+        "/catalog/{id}",
+        "Google Dataset Search JSON-LD markup embedded in study landing pages",
+    )
+
+    console.print(fmt_table)
 
 
 @app.command()
@@ -339,15 +458,15 @@ def study(
         ),
     ] = "microdata.worldbank.org",
     export: Annotated[
-        Literal["ddi", "json", "resources"] | None,
-        typer.Option("--export", "-e", help="Export format (ddi, json, resources)"),
+        Literal["ddi", "json", "resources", "croissant", "schema"] | None,
+        typer.Option("--export", "-e", help="Export format (ddi, json, resources, croissant, schema)"),
     ] = None,
     api_key: Annotated[
         str | None,
         typer.Option("--api-key", "-k", envvar=["DARTFX_NADA_API_KEY", "NADA_API_KEY"], help="API Key"),
     ] = None,
 ) -> None:
-    """Get metadata or download an export format (ddi, json, resources) for a study."""
+    """Get metadata or download an export format (ddi, json, resources, croissant, schema) for a study."""
     server = get_server(hostname, api_key)
 
     with console.status(f"[bold green]Fetching study '{identifier}' from {hostname}..."):
@@ -360,6 +479,12 @@ def study(
                 console.print_json(data=result)
             elif export == "resources":
                 result = server.get_study_resources(identifier)
+                console.print_json(data=result)
+            elif export == "croissant":
+                result = server.get_study_croissant(identifier)
+                console.print_json(data=result)
+            elif export == "schema":
+                result = server.get_study_schema(identifier)
                 console.print_json(data=result)
             else:
                 result = server.get_study(identifier)
@@ -436,7 +561,7 @@ def stats(
         ),
     ] = 10,
 ) -> None:
-    """Display live study count, collections, and latency for NADA servers."""
+    """Display live study count, latency, and status for NADA servers."""
     from dartfx.nada.harvester import display_server_stats
 
     display_server_stats(
@@ -455,7 +580,16 @@ def errors(
     repo_dir: Annotated[
         str | None,
         typer.Argument(
-            help="Path to repository storage root directory (defaults to DARTFX_NADA_REPOSITORY or ./).",
+            help="Path to repository storage root directory (defaults to DARTFX_NADA_REPOSITORY or ./repository).",
+        ),
+    ] = None,
+    repo_dir_opt: Annotated[
+        str | None,
+        typer.Option(
+            "--repo-dir",
+            "-r",
+            envvar="DARTFX_NADA_REPOSITORY",
+            help="Path to repository storage root directory.",
         ),
     ] = None,
     server: Annotated[
@@ -501,7 +635,8 @@ def errors(
     """Analyze and report counts per harvest error type from repository manifests."""
     from dartfx.nada.harvester import analyze_harvest_errors, render_harvest_errors
 
-    analysis = analyze_harvest_errors(repo_dir=repo_dir, server=server)
+    effective_repo_dir = repo_dir or repo_dir_opt
+    analysis = analyze_harvest_errors(repo_dir=effective_repo_dir, server=server)
 
     if format == OutputFormat.JSON:
         console.print_json(json.dumps(analysis, indent=2))

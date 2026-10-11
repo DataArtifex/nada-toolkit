@@ -18,7 +18,7 @@ def test_fetch_nada_installations() -> None:
     assert len(installations) > 0
     wb = next((inst for inst in installations if "worldbank" in (inst.hostname or "")), None)
     assert wb is not None
-    assert wb.country_code == "US"
+    assert wb.clean_hostname == "microdata.worldbank.org"
 
 
 def test_server_installation_country_code_derivation() -> None:
@@ -50,10 +50,10 @@ def test_country_crosswalk_and_matching() -> None:
 
 def test_fetch_nada_installations_filtering() -> None:
     # Country filter
-    us_servers = fetch_nada_installations(country="US")
-    assert len(us_servers) > 0
-    for s in us_servers:
-        assert s.country_code == "US"
+    ug_servers = fetch_nada_installations(country="UG")
+    assert len(ug_servers) > 0
+    for s in ug_servers:
+        assert s.country_code == "UG"
 
     # Specific known target server filter
     wb_list = fetch_nada_installations(target_server="microdata.worldbank.org")
@@ -81,7 +81,14 @@ def test_cli_installations_command(monkeypatch) -> None:
     assert len(data) == 2
     assert all(d.get("country_code") == "US" for d in data)
 
-    result_csv = runner.invoke(app, ["installations", "--country", "US", "--limit", "2", "--format", "csv"])
+    # Test list as preferred alias
+    result_list = runner.invoke(app, ["list", "--country", "US", "--limit", "2", "--format", "json"])
+    assert result_list.exit_code == 0
+    data_list = json.loads(result_list.stdout)
+    assert len(data_list) == 2
+    assert all(d.get("country_code") == "US" for d in data_list)
+
+    result_csv = runner.invoke(app, ["list", "--country", "US", "--limit", "2", "--format", "csv"])
     assert result_csv.exit_code == 0
     assert "country_code" in result_csv.stdout
     assert "US" in result_csv.stdout

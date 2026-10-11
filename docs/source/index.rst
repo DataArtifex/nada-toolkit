@@ -24,6 +24,7 @@ Key Capabilities
    :maxdepth: 2
    :caption: Contents:
 
+   diagnostics
    changelog
 
 Indices and tables

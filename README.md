@@ -64,27 +64,30 @@ The package installs the `dartfx-nada` CLI tool:
 
 ### 1. Server Discovery & Installations
 
-List known worldwide NADA servers:
+List known worldwide NADA servers (`list` is the preferred command, with `installations` as an alias):
 
 ```bash
 # List all known installations
+dartfx-nada list
+
+# Alternatively using the installations alias
 dartfx-nada installations
 
 # Filter by country code (e.g. US, ID, ZA, UG) or country name
-dartfx-nada installations --country US
+dartfx-nada list --country US
 
 # Export list as JSON or CSV
-dartfx-nada installations --format json --limit 10
-dartfx-nada installations --format csv
+dartfx-nada list --format json --limit 10
+dartfx-nada list --format csv
 ```
 
 ### 2. Server Information & Collections
 
-Inspect a server's version and catalog collections:
+Inspect a server's profile, total study counts, and supported export formats:
 
 ```bash
-# Get server info and detected NADA version (v5 vs v4)
-dartfx-nada info microdata.worldbank.org
+# Get server info, total study count, collections, and supported export formats
+dartfx-nada info catalog.ihsn.org
 
 # List collections in the repository
 dartfx-nada collections --hostname microdata.worldbank.org
@@ -108,7 +111,7 @@ dartfx-nada search "health" --format csv
 
 ### 4. Study Metadata & Export Formats
 
-Retrieve single study metadata or export documents:
+Retrieve single study metadata or export documents (including MLCommons Croissant):
 
 ```bash
 # Get study JSON metadata
@@ -116,6 +119,9 @@ dartfx-nada study MWI_2019_IHS-V_v01_M -H microdata.worldbank.org
 
 # Download DDI 2.5 CodeBook XML
 dartfx-nada study MWI_2019_IHS-V_v01_M -H microdata.worldbank.org --export ddi
+
+# Download MLCommons Croissant JSON-LD (AI/ML dataset metadata)
+dartfx-nada study MWI_2019_IHS-V_v01_M -H microdata.worldbank.org --export croissant
 
 # Download external resources & documentation JSON
 dartfx-nada study MWI_2019_IHS-V_v01_M -H microdata.worldbank.org --export resources
@@ -126,10 +132,10 @@ dartfx-nada study MWI_2019_IHS-V_v01_M -H microdata.worldbank.org --export resou
 Bulk-harvest and synchronize study metadata into local disk storage:
 
 ```bash
-# Harvest studies from World Bank Microdata Library into ./repository
-dartfx-nada harvest --server microdata.worldbank.org --limit 50 --formats ddi,json
+# Harvest studies from World Bank Microdata Library using 8 concurrent worker threads
+dartfx-nada harvest --server microdata.worldbank.org --limit 50 --formats ddi,json --workers 8
 
-# Harvest all supported formats (DDI XML, JSON metadata, resources)
+# Harvest all supported formats (DDI XML, JSON metadata, resources, Schema.org)
 dartfx-nada harvest --server nada.ubos.org --formats all
 
 # Harvest studies across all servers in a country
@@ -143,13 +149,26 @@ dartfx-nada harvest --server microdata.worldbank.org --dry-run
 
 Benchmark and inspect live server status:
 
-```bash
-# Display live study and collection counts across servers
+# Display live study counts across servers
 dartfx-nada stats
 
-# Inspect servers in a specific country
+# Inspect servers in a specific country (forcing live bypass of 24h cache)
 dartfx-nada stats --country UG --refresh
 ```
+
+#### Interpreting the Status Column
+
+The `stats` table displays latency ratings and diagnostic status badges:
+- **`Online`**: Reachable NADA server returning active study counts.
+- **`Cached (24h)`**: Cached metrics loaded from local `.stats_cache.json` (use `--refresh` to force live checks).
+- **`Online (HTTPS Avail)`**: Server currently reached over HTTP, but HTTPS is fully available and recommended for upgrade.
+- **`HTTP (SSL Failed)`**: Server failed SSL/TLS verification on HTTPS, but study counts and catalog access were successfully recovered via HTTP port 80.
+- **`Not NADA Server`**: The domain is active but does not run a valid NADA API or catalog endpoint (e.g. portal redirects, general government websites).
+- **`Domain For Sale`**: Domain has lapsed and redirects to a registrar parking/auction page.
+- **`SSL Incomplete Chain`**: The server is missing intermediate CA certificates (`cert.pem` served without `fullchain.pem`). While web browsers automatically repair this in the background using AIA fetching or intermediate caching, standard OpenSSL/Python clients strictly require the complete chain.
+- **`SSL Hostname Mismatch` / `SSL Expired`**: Certificate is misconfigured or expired.
+- **`Timeout (10s)` / `DNS Resolution Failure`**: Host unreachable within 10 seconds or domain no longer resolves.
+
 
 ### 7. Harvest Error Reporting & Diagnostics
 
@@ -203,6 +222,12 @@ meta_json = server.get_study_json("MWI_2019_IHS-V_v01_M")
 
 # Download external documentation / questionnaire resources
 resources = server.get_study_resources("MWI_2019_IHS-V_v01_M")
+
+# Download MLCommons Croissant JSON-LD
+croissant = server.get_study_croissant("MWI_2019_IHS-V_v01_M")
+
+# Download Google Dataset Search Schema.org JSON-LD
+schema_jsonld = server.get_study_schema("MWI_2019_IHS-V_v01_M")
 ```
 
 ### 3. Programmatic Metadata Harvester

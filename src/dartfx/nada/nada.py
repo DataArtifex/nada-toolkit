@@ -4,6 +4,8 @@ import io
 import json
 import logging
 import os
+import re
+import urllib.parse
 from typing import Any, Literal
 
 import requests
@@ -87,6 +89,7 @@ COUNTRY_TO_ISO2: dict[str, str] = {
     "GUATEMALA": "GT",
     "GUINEA": "GN",
     "GUINEA-BISSAU": "GW",
+    "GUINEA BISSAU": "GW",
     "GUYANA": "GY",
     "HAITI": "HT",
     "HOLLAND": "NL",
@@ -158,6 +161,7 @@ COUNTRY_TO_ISO2: dict[str, str] = {
     "PARAGUAY": "PY",
     "PERU": "PE",
     "PHILIPPINES": "PH",
+    "PHILLIPINES": "PH",
     "POLAND": "PL",
     "PORTUGAL": "PT",
     "QATAR": "QA",
@@ -230,6 +234,11 @@ def get_iso2_code(raw_country: str, existing_code: str = "") -> str:
     if clean_country in COUNTRY_TO_ISO2:
         return COUNTRY_TO_ISO2[clean_country]
 
+    if "," in clean_country:
+        first_part = clean_country.split(",")[0].strip()
+        if first_part in COUNTRY_TO_ISO2:
+            return COUNTRY_TO_ISO2[first_part]
+
     if len(clean_country) == 2:
         return clean_country
 
@@ -270,22 +279,28 @@ class ServerInstallation(BaseModel):
     country_code: str | None = None
     continent: str | None = None
     version: int | str | None = None
+    status: str | None = None
     collections_count: int | None = None
     studies_count: int | None = None
     contact_email: str | None = None
     about_url: str | None = None
     id: str | None = None
+    scheme: str = "https"
 
     def model_post_init(self, __context: Any) -> None:
-        """Derive country_code and clean hostname if not provided."""
+        """Derive country_code, clean hostname, and scheme if not provided."""
         if not self.country_code and self.country:
             self.country_code = get_iso2_code(self.country)
         if self.hostname:
+            if self.hostname.lower().startswith("http://"):
+                self.scheme = "http"
             clean = self.hostname.replace("https://", "").replace("http://", "").strip("/")
             # If path was included in hostname, separate or clean
             if "/" in clean:
                 clean = clean.split("/", 1)[0]
             self.hostname = clean
+        elif self.about_url and self.about_url.lower().startswith("http://"):
+            self.scheme = "http"
         if not self.id and self.clean_hostname:
             self.id = self.clean_hostname
 
@@ -301,10 +316,10 @@ class ServerInstallation(BaseModel):
 
     @property
     def url(self) -> str:
-        """Return HTTPS URL for the installation."""
+        """Return URL for the installation."""
         if not self.clean_hostname:
             return ""
-        return f"https://{self.clean_hostname}"
+        return f"{self.scheme}://{self.clean_hostname}"
 
 
 NADA_DIRECTORY_URLS: list[str] = [
@@ -511,6 +526,7 @@ def fetch_nada_installations(
                         h_map = {k.strip().lower(): v.strip() for k, v in row.items() if k and v}
                         host = (
                             h_map.get("hostname")
+                            or h_map.get("home")
                             or h_map.get("url")
                             or h_map.get("server")
                             or h_map.get("server url")
@@ -525,9 +541,20 @@ def fetch_nada_installations(
                             or h_map.get("organization")
                             or host
                         )
-                        c = h_map.get("country") or h_map.get("nation") or ""
+                        c = h_map.get("country") or h_map.get("geocoverage") or h_map.get("nation") or ""
                         cc = h_map.get("country_code") or h_map.get("code") or h_map.get("iso2") or ""
                         ver = h_map.get("version") or h_map.get("server_version")
+                        if isinstance(ver, str):
+                            clean_ver = ver.lower().replace(".x", "").replace("v", "").strip()
+                            if clean_ver.isdigit():
+                                ver = int(clean_ver)
+                        studies_cnt = h_map.get("n_studies") or h_map.get("studies_count")
+                        if studies_cnt:
+                            clean_cnt = studies_cnt.replace(",", "").strip()
+                            studies_cnt_val = int(clean_cnt) if clean_cnt.isdigit() else None
+                        else:
+                            studies_cnt_val = None
+
                         csv_items.append(
                             {
                                 "name": name,
@@ -535,7 +562,11 @@ def fetch_nada_installations(
                                 "country": c,
                                 "country_code": cc,
                                 "version": ver,
-                                "about_url": h_map.get("about_url") or (f"https://{host}" if host else ""),
+                                "status": h_map.get("status"),
+                                "studies_count": studies_cnt_val,
+                                "about_url": h_map.get("about_url")
+                                or h_map.get("custodian")
+                                or (f"https://{host}" if host else ""),
                             }
                         )
                     if csv_items:
@@ -792,7 +823,19 @@ class NadaServer(BaseModel):
         else:
             url = f"{self.url}/{self.api_base_path}/{clean_path}"
 
-        response = self.session.request(method, url, headers=request_headers, verify=self.ssl_verify, **kwargs)
+        try:
+            response = self.session.request(method, url, headers=request_headers, verify=self.ssl_verify, **kwargs)
+        except requests.exceptions.SSLError as ssl_err:
+            if url.startswith("https://"):
+                http_url = "http://" + url[len("https://") :]
+                logging.warning(f"SSL verification failed for {url}. Attempting HTTP fallback to {http_url}")
+                try:
+                    response = self.session.request(method, http_url, headers=request_headers, **kwargs)
+                    self.installation.scheme = "http"
+                except Exception:
+                    raise ssl_err from None
+            else:
+                raise
         actual_return_type = return_type or self.on_api_success_return
 
         if response.status_code == success:
@@ -904,6 +947,45 @@ class NadaServer(BaseModel):
         """Download study external resources and questionnaires as JSON."""
         params = {"id_format": id_format} if id_format else None
         return self.get_request(f"catalog/resources/{idno}", params=params)
+
+    def get_study_croissant(self, idno: str, id_format: str | None = None) -> Any:
+        """Download study metadata formatted as MLCommons Croissant JSON-LD."""
+        params = {"id_format": id_format} if id_format else None
+        return self.get_request(f"catalog/croissant/{idno}", params=params)
+
+    def get_study_schema(self, idno: str, numeric_id: int | str | None = None) -> Any:
+        """Download and extract Schema.org Dataset JSON-LD metadata from the study catalog landing page."""
+        clean_idno = idno.strip()
+        candidate_paths = [
+            f"index.php/catalog/study/{clean_idno}",
+        ]
+        if numeric_id and str(numeric_id).strip() != clean_idno:
+            candidate_paths.append(f"index.php/catalog/{urllib.parse.quote(str(numeric_id).strip())}")
+        candidate_paths.append(f"index.php/catalog/{clean_idno}")
+
+        for p in candidate_paths:
+            try:
+                html = self.get_request(p, return_type="text")
+                if html and "application/ld+json" in html:
+                    m = re.search(
+                        r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
+                        html,
+                        re.DOTALL | re.IGNORECASE,
+                    )
+                    if m:
+                        return json.loads(m.group(1).strip())
+            except Exception:
+                continue
+
+        logging.error(f"Schema.org JSON-LD not found for study {idno}")
+        if self.on_api_error != "none":
+            raise NadaApiError(
+                f"Schema.org JSON-LD not found on study landing page for {idno}",
+                f"{self.url}/index.php/catalog/study/{clean_idno}",
+                404,
+                None,
+            )
+        return None
 
     def get_data_files(self, idno: str, id_format: str | None = None) -> Any:
         """List all data files for a study."""

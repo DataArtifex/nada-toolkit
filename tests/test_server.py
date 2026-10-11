@@ -74,3 +74,22 @@ def test_version_detection_v4() -> None:
     server.session.get = MagicMock(side_effect=mock_get)
     ver = server.detect_server_version()
     assert ver == 4
+
+
+def test_nada_server_ssl_fallback_to_http() -> None:
+    import requests
+
+    server = NadaServer("mock.ssl.nada.org", lookup_installation=False)
+
+    def mock_req(_method, url, **_kwargs):
+        if url.startswith("https://"):
+            raise requests.exceptions.SSLError("unable to get local issuer certificate")
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json = MagicMock(return_value={"idno": "TEST-1", "title": "Test Survey"})
+        return resp
+
+    server.session.request = MagicMock(side_effect=mock_req)
+    res = server.get_study("TEST-1")
+    assert res["idno"] == "TEST-1"
+    assert server.installation.scheme == "http"

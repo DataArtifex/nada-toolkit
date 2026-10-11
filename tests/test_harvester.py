@@ -2,14 +2,19 @@ import json
 import re
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import MagicMock
 
+import requests
 from typer.testing import CliRunner
 
 from dartfx.nada.cli import app
 from dartfx.nada.harvester import (
     ServerHarvester,
+    _is_parked_or_domain_sale,
+    abbreviate_error,
     analyze_harvest_errors,
     classify_harvest_error,
+    fetch_active_studies,
     fetch_server_stats,
     format_dataset_url,
     format_response_latency,
@@ -39,9 +44,11 @@ def test_format_version() -> None:
 def test_normalize_formats() -> None:
     assert normalize_formats("ddi") == ["ddi"]
     assert normalize_formats("ddi,json,resources") == ["ddi", "json", "resources"]
-    assert normalize_formats("all") == ["ddi", "json", "resources"]
+    assert normalize_formats("all") == ["ddi", "json", "resources", "croissant", "schema"]
     assert normalize_formats("xml") == ["ddi"]
     assert normalize_formats("metadata") == ["json"]
+    assert normalize_formats("schema") == ["schema"]
+    assert normalize_formats("schema.org") == ["schema"]
     assert normalize_formats(None) == []
 
 
@@ -126,8 +133,54 @@ def test_classify_harvest_error() -> None:
         classify_harvest_error("certificate verify failed: self-signed certificate")
         == "Network: SSL Self-Signed Certificate"
     )
+    wrapped_ssl_err = (
+        "HTTPSConnectionPool(host='microdata.cbs.gov.np', port=443): Max retries exceeded "
+        "with url: /index.php/api/catalog/collections (Caused by SSLError(SSLCertVerificationError(1, "
+        '"[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, '
+        "certificate is not valid for 'microdata.cbs.gov.np'. (_ssl.c:1010)\")))"
+    )
+    assert classify_harvest_error(wrapped_ssl_err) == "Network: SSL Hostname Mismatch"
     assert classify_harvest_error("Some random error") == "Other Error"
     assert classify_harvest_error(None) == "Unknown Error"
+
+
+def test_abbreviate_error() -> None:
+    wrapped_ssl_err = (
+        "HTTPSConnectionPool(host='microdata.cbs.gov.np', port=443): Max retries exceeded "
+        "with url: /index.php/api/catalog/collections (Caused by SSLError(SSLCertVerificationError(1, "
+        '"[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, '
+        "certificate is not valid for 'microdata.cbs.gov.np'. (_ssl.c:1010)\")))"
+    )
+    assert abbreviate_error(wrapped_ssl_err) == "SSL Hostname Mismatch"
+    assert abbreviate_error("Timeout (10s)") == "Timeout (10s)"
+    assert abbreviate_error("Connection timed out (ReadTimeout)") == "Request Timeout"
+    assert abbreviate_error("Connection refused") == "Connection Refused"
+    assert abbreviate_error("certificate has expired") == "SSL Certificate Expired"
+    assert abbreviate_error("unable to get local issuer certificate") == "SSL Incomplete Chain"
+    assert abbreviate_error("self-signed certificate") == "SSL Self-Signed Cert"
+    assert abbreviate_error("HTTP 401: Unauthorized") == "Auth Required (401)"
+    assert abbreviate_error("HTTP 403: Forbidden") == "Forbidden (403)"
+    assert abbreviate_error("Cloudflare challenge") == "Bot Protection (WAF)"
+    assert abbreviate_error("HTTP 404: Not Found") == "Not Found (404)"
+    assert abbreviate_error("HTTP 500: Server Error") == "Server Error (500)"
+    assert abbreviate_error("HTTP 502: Bad Gateway") == "Bad Gateway (502)"
+    assert abbreviate_error("HugeDomains.com is for sale") == "Domain For Sale"
+    assert abbreviate_error("Not a NADA server") == "Not NADA Server"
+    assert abbreviate_error(None) == "Unknown Error"
+
+
+def test_is_parked_or_domain_sale() -> None:
+    import requests
+
+    resp_parked = requests.Response()
+    resp_parked.url = "https://www.hugedomains.com/domain_profile.cfm?d=microdatahub.com"
+    resp_parked.status_code = 200
+    assert _is_parked_or_domain_sale("botswana.microdatahub.com", resp_parked) is True
+
+    resp_valid = requests.Response()
+    resp_valid.url = "https://microdata.worldbank.org/index.php/api/catalog/collections"
+    resp_valid.status_code = 200
+    assert _is_parked_or_domain_sale("microdata.worldbank.org", resp_valid) is False
 
 
 def test_format_response_latency() -> None:
@@ -246,3 +299,242 @@ def test_cli_harvest_help() -> None:
     assert "--server" in clean_output
     assert "--dry-run" in clean_output
     assert "--limit" in clean_output
+    assert "--workers" in clean_output
+    assert "-w" in clean_output
+
+
+def test_fetch_server_stats_v4_study_count(monkeypatch) -> None:
+    def mock_get(url, **_kwargs):
+        resp = MagicMock()
+        if "api/catalog/collections" in url:
+            resp.status_code = 404
+        elif "api/catalog/search" in url:
+            resp.status_code = 404
+        elif "catalog/export/csv" in url:
+            resp.status_code = 200
+            resp.text = "id,surveyid,titl\n1,TEST,Sample"
+        elif "catalog" in url:
+            resp.status_code = 200
+            resp.text = '<div class="search-count">Trouvé <b>163</b> études parmis <b>163</b></div>'
+        return resp
+
+    monkeypatch.setattr("requests.get", mock_get)
+    stats = fetch_server_stats("mock.stat.cm", refresh_cache=True)
+    assert stats["is_nada"] is True
+    assert stats["version"] == "4"
+    assert stats["studies"] == 163
+
+
+def test_fetch_server_stats_ssl_fallback_to_http(monkeypatch) -> None:
+    def mock_get(url, **_kwargs):
+        if url.startswith("https://"):
+            msg = "[SSL: CERTIFICATE_VERIFY_FAILED] unable to get local issuer certificate"
+            raise requests.exceptions.SSLError(msg)
+        # HTTP succeeds
+        resp = MagicMock()
+        if "api/catalog/search" in url:
+            resp.status_code = 200
+            resp.json = MagicMock(return_value={"result": {"total": 121, "rows": []}})
+        else:
+            resp.status_code = 404
+        return resp
+
+    monkeypatch.setattr("requests.get", mock_get)
+    stats = fetch_server_stats("mock-ssl.nada.org", refresh_cache=True)
+    assert stats["is_nada"] is True
+    assert stats["http_fallback"] is True
+    assert stats["ssl_error"] == "SSL Incomplete Chain"
+    assert stats["studies"] == 121
+
+
+def test_fetch_server_stats_http_recommends_https(monkeypatch) -> None:
+    def mock_get(url, **_kwargs):
+        resp = MagicMock()
+        if "api/catalog/search" in url:
+            resp.status_code = 200
+            resp.json = MagicMock(return_value={"result": {"total": 50, "rows": []}})
+        else:
+            resp.status_code = 404
+        return resp
+
+    monkeypatch.setattr("requests.get", mock_get)
+    stats = fetch_server_stats("http://mock-plain.nada.org", refresh_cache=True)
+    assert stats["is_nada"] is True
+    assert stats["https_upgrade_recommended"] is True
+    assert stats["studies"] == 50
+
+
+def test_fetch_study_record_schema(monkeypatch) -> None:
+    from dartfx.nada.harvester import fetch_study_record
+
+    def mock_get(_url, **_kwargs):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.text = """
+        <html><head>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org/",
+          "@type": "Dataset",
+          "name": "Test Survey Dataset",
+          "identifier": "TEST-1"
+        }
+        </script>
+        </head><body>Content</body></html>
+        """
+        return resp
+
+    monkeypatch.setattr("requests.get", mock_get)
+    content, ext, err = fetch_study_record("mock.nada.org", "TEST-1", metadata_format="schema")
+    assert err is None
+    assert ext == ".schema.jsonld"
+    assert content is not None
+    data = json.loads(content.decode("utf-8"))
+    assert data["@context"] == "https://schema.org/"
+    assert data["name"] == "Test Survey Dataset"
+
+
+def test_fetch_active_studies_cache_expansion_with_higher_limit(tmp_path: Path, monkeypatch) -> None:
+    calls = []
+
+    def mock_get(url, **_kwargs):
+        calls.append(url)
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json = MagicMock(
+            return_value={
+                "result": {
+                    "total": 10,
+                    "rows": [{"idno": f"ST-{i}", "id": str(i), "title": f"Study {i}"} for i in range(1, 11)],
+                }
+            }
+        )
+        return resp
+
+    monkeypatch.setattr("requests.get", mock_get)
+
+    # 1. Fetch with limit=2 (should query server and cache 2 studies)
+    studies_1 = fetch_active_studies("mock.server.org", limit=2, server_dir=tmp_path)
+    assert len(studies_1) == 2
+    assert len(calls) == 1
+
+    # 2. Fetch with limit=4 (cached 2 is less than 4, so must bypass cache and query server)
+    studies_2 = fetch_active_studies("mock.server.org", limit=4, server_dir=tmp_path)
+    assert len(studies_2) == 4
+    assert len(calls) == 2
+
+    # 3. Fetch with limit=3 (cached now has 4, which is >= 3, so should hit cache without network call)
+    studies_3 = fetch_active_studies("mock.server.org", limit=3, server_dir=tmp_path)
+    assert len(studies_3) == 3
+    assert len(calls) == 2  # No new network call!
+
+
+def test_server_harvester_sync_multi_threaded(monkeypatch, tmp_path: Path) -> None:
+    mock_studies = {
+        f"ST-{i}": {
+            "idno": f"ST-{i}",
+            "id": str(i),
+            "title": f"Study {i}",
+            "changed": "2026-01-01",
+        }
+        for i in range(1, 13)
+    }
+
+    monkeypatch.setattr(
+        "dartfx.nada.harvester.fetch_active_studies",
+        lambda *_args, **_kwargs: mock_studies,
+    )
+
+    def mock_fetch_study_record(_host, idno, metadata_format="ddi", **_kwargs):
+        return f"<xml>Study {idno} {metadata_format}</xml>".encode(), ".ddi.xml", None
+
+    monkeypatch.setattr(
+        "dartfx.nada.harvester.fetch_study_record",
+        mock_fetch_study_record,
+    )
+
+    progress_calls = []
+
+    def on_progress(cur, total, pid, fmt, meta, filename=None):
+        progress_calls.append((cur, total, pid, fmt, filename or meta.get("filename")))
+
+    harvester = ServerHarvester("mock.server.org", tmp_path)
+    res = harvester.sync(limit=12, metadata_formats="ddi", workers=4, progress_callback=on_progress)
+
+    assert len(res["added"]) == 12
+    assert len(res["errors"]) == 0
+    assert len(harvester.manifest["records"]) == 12
+    assert len(progress_calls) == 12
+    for _cur, tot, pid, _fmt, fname in progress_calls:
+        assert tot == 12
+        assert fname == f"{pid}/metadata/ddi.xml"
+
+    # Verify files written to disk
+    for i in range(1, 13):
+        rec_key = f"ST-{i}::ddi"
+        assert rec_key in harvester.manifest["records"]
+        file_path = tmp_path / "mock.server.org" / harvester.manifest["records"][rec_key]["path"]
+        assert file_path.exists()
+        assert file_path.read_bytes() == f"<xml>Study ST-{i} ddi</xml>".encode()
+
+    # Second sync run with workers=4 should recognize all as unchanged
+    res_second = harvester.sync(limit=12, metadata_formats="ddi", workers=4)
+    assert len(res_second["added"]) == 0
+    assert len(res_second["unchanged"]) == 12
+
+
+def test_harvester_records_recoverable_and_non_recoverable_errors(monkeypatch, tmp_path: Path) -> None:
+    mock_studies = {
+        "ERR-RECOVERABLE": {
+            "idno": "ERR-RECOVERABLE",
+            "id": "1",
+            "title": "Recoverable Study",
+        },
+        "ERR-PERMANENT": {
+            "idno": "ERR-PERMANENT",
+            "id": "2",
+            "title": "Permanent Error Study",
+        },
+    }
+
+    monkeypatch.setattr(
+        "dartfx.nada.harvester.fetch_active_studies",
+        lambda *_args, **_kwargs: mock_studies,
+    )
+
+    fetch_attempts = {"ERR-RECOVERABLE": 0, "ERR-PERMANENT": 0}
+
+    def mock_fetch(_host, idno, **_kwargs):
+        fetch_attempts[idno] += 1
+        if idno == "ERR-RECOVERABLE":
+            if fetch_attempts[idno] == 1:
+                return None, ".ddi.xml", "Read timed out"
+            return b"<xml>Recovered</xml>", ".ddi.xml", None
+        return None, ".ddi.xml", "HTTP 404: Not Found"
+
+    monkeypatch.setattr(
+        "dartfx.nada.harvester.fetch_study_record",
+        mock_fetch,
+    )
+
+    harvester = ServerHarvester("mock.server.org", tmp_path)
+    res_1 = harvester.sync(metadata_formats="ddi")
+    assert len(res_1["errors"]) == 2
+
+    # Verify both errors are saved in manifest
+    assert "ERR-RECOVERABLE::ddi" in harvester.manifest["errors"]
+    assert harvester.manifest["errors"]["ERR-RECOVERABLE::ddi"]["recoverable"] is True
+    assert "ERR-PERMANENT::ddi" in harvester.manifest["errors"]
+    assert harvester.manifest["errors"]["ERR-PERMANENT::ddi"]["recoverable"] is False
+
+    # Verify analyze_harvest_errors finds them
+    analysis = analyze_harvest_errors(repo_dir=tmp_path)
+    assert analysis["total_errors"] == 2
+    assert len(analysis["records"]) == 2
+
+    # Second sync: ERR-RECOVERABLE is auto-retried and succeeds; ERR-PERMANENT is skipped as cached error
+    res_2 = harvester.sync(metadata_formats="ddi")
+    assert len(res_2["added"]) == 1
+    assert "ERR-RECOVERABLE::ddi" in res_2["added"]
+    assert "ERR-RECOVERABLE::ddi" not in harvester.manifest["errors"]
+    assert "ERR-PERMANENT::ddi" in harvester.manifest["errors"]

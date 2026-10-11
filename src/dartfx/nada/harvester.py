@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import re
+import threading
 import time
 import urllib.parse
 import warnings
@@ -30,6 +31,7 @@ from rich.progress import (
     SpinnerColumn,
     TaskProgressColumn,
     TextColumn,
+    TimeElapsedColumn,
     TimeRemainingColumn,
 )
 from rich.table import Table
@@ -59,6 +61,7 @@ class HarvesterFileLogger:
 
     def __init__(self, log_path: Path | None = None):
         self.log_path = log_path
+        self._lock = threading.Lock()
         if self.log_path:
             self.log_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -72,11 +75,12 @@ class HarvesterFileLogger:
         formatted = f"{timestamp} [{level}] {plain_msg}"
 
         if self.log_path:
-            try:
-                with open(self.log_path, "a", encoding="utf-8") as f:
-                    f.write(formatted + "\n")
-            except Exception:
-                pass
+            with self._lock:
+                try:
+                    with open(self.log_path, "a", encoding="utf-8") as f:
+                        f.write(formatted + "\n")
+                except Exception:
+                    pass
 
 
 file_logger = HarvesterFileLogger()
@@ -118,9 +122,13 @@ FORMAT_EXTENSIONS: dict[str, str] = {
     "json": ".nada.json",
     "metadata": ".nada.json",
     "resources": ".resources.json",
+    "croissant": ".croissant.json",
+    "schema": ".schema.jsonld",
+    "schema.org": ".schema.jsonld",
+    "json-ld": ".schema.jsonld",
 }
 
-ALL_SUPPORTED_FORMATS: list[str] = ["ddi", "json", "resources"]
+ALL_SUPPORTED_FORMATS: list[str] = ["ddi", "json", "resources", "croissant", "schema"]
 
 
 def get_format_extension(fmt: str) -> str:
@@ -150,6 +158,8 @@ def normalize_formats(formats_input: str | list[str] | None) -> list[str]:
                 fmt_clean = "ddi"
             elif fmt_clean == "metadata":
                 fmt_clean = "json"
+            elif fmt_clean in ("schema.org", "json-ld", "jsonld"):
+                fmt_clean = "schema"
             if fmt_clean in ALL_SUPPORTED_FORMATS and fmt_clean not in parsed:
                 parsed.append(fmt_clean)
     return parsed
@@ -387,7 +397,24 @@ def classify_harvest_error(reason: str | None) -> str:
     ):
         return "HTTP 5xx: Server / Upstream Error"
 
-    # 8. Network Errors
+    # 8. SSL / TLS Diagnostics (checked before generic network errors)
+    if "ssl" in r_low or "certificate" in r_low:
+        if (
+            "unable to get local issuer certificate" in r_low
+            or "unable to verify the first certificate" in r_low
+            or "missing intermediate" in r_low
+            or "incomplete chain" in r_low
+        ):
+            return "Network: SSL Incomplete Chain (Missing Intermediate CA)"
+        if "expired" in r_low:
+            return "Network: SSL Certificate Expired"
+        if "hostname" in r_low and ("mismatch" in r_low or "doesn't match" in r_low or "not valid" in r_low):
+            return "Network: SSL Hostname Mismatch"
+        if "self-signed" in r_low or "self signed" in r_low:
+            return "Network: SSL Self-Signed Certificate"
+        return "Network: SSL / TLS Certificate Error"
+
+    # 9. Network Errors
     if any(k in r_low for k in ["timeout", "timed out", "connecttimeout", "readtimeout"]):
         return "Network: Request Timeout"
 
@@ -398,11 +425,14 @@ def classify_harvest_error(reason: str | None) -> str:
             "connection error",
             "max retries exceeded",
             "failed to establish a new connection",
+            "nameresolutionerror",
+            "getaddrinfo failed",
+            "nodename nor servname",
         ]
     ):
         return "Network: Connection Failure"
 
-    # 9. Parse Errors
+    # 10. Parse Errors
     if any(
         k in r_low
         for k in [
@@ -417,24 +447,110 @@ def classify_harvest_error(reason: str | None) -> str:
     ):
         return "Parse Error: Malformed XML / JSON"
 
-    # 10. SSL / TLS Diagnostics
-    if "ssl" in r_low or "certificate" in r_low:
+    return "Other Error"
+
+
+def abbreviate_error(reason: str | None) -> str:
+    """Format a verbose error or exception string into a concise label for CLI table display."""
+    if not reason:
+        return "Unknown Error"
+    r_low = reason.lower()
+
+    # 0. Domain Parked / Expired / For Sale or Not NADA
+    if any(k in r_low for k in ["hugedomains", "for sale", "domain expired", "domain parked", "parked domain"]):
+        return "Domain For Sale"
+    if "not a nada server" in r_low or "not nada server" in r_low or "not nada" in r_low:
+        return "Not NADA Server"
+
+    # 1. SSL / TLS Diagnostics
+    if "ssl" in r_low or "certificate" in r_low or "cert" in r_low:
+        if "hostname" in r_low and ("mismatch" in r_low or "doesn't match" in r_low or "not valid" in r_low):
+            return "SSL Hostname Mismatch"
+        if "expired" in r_low:
+            return "SSL Certificate Expired"
+        if "self-signed" in r_low or "self signed" in r_low:
+            return "SSL Self-Signed Cert"
         if (
             "unable to get local issuer certificate" in r_low
             or "unable to verify the first certificate" in r_low
             or "missing intermediate" in r_low
             or "incomplete chain" in r_low
         ):
-            return "Network: SSL Incomplete Chain (Missing Intermediate CA)"
-        if "expired" in r_low:
-            return "Network: SSL Certificate Expired"
-        if "hostname" in r_low and ("mismatch" in r_low or "doesn't match" in r_low):
-            return "Network: SSL Hostname Mismatch"
-        if "self-signed" in r_low or "self signed" in r_low:
-            return "Network: SSL Self-Signed Certificate"
-        return "Network: SSL / TLS Certificate Error"
+            return "SSL Incomplete Chain"
+        return "SSL Certificate Error"
 
-    return "Other Error"
+    # 2. Timeout (preserve concise format like "Timeout (10s)" if already present)
+    m = re.search(r"timeout\s*\(\d+s\)", reason, re.IGNORECASE)
+    if m:
+        return m.group(0).capitalize()
+    if any(k in r_low for k in ["timeout", "timed out", "connecttimeout", "readtimeout"]):
+        return "Request Timeout"
+
+    # 3. DNS / Name Resolution
+    if any(
+        k in r_low
+        for k in ["nameresolutionerror", "getaddrinfo failed", "nodename nor servname", "name or service not known"]
+    ):
+        return "DNS Resolution Failure"
+
+    # 4. Connection Failures
+    if "connection refused" in r_low:
+        return "Connection Refused"
+    if "connection reset" in r_low:
+        return "Connection Reset"
+    if any(
+        k in r_low
+        for k in [
+            "connection error",
+            "max retries exceeded",
+            "failed to establish a new connection",
+            "remotedisconnected",
+        ]
+    ):
+        return "Connection Failure"
+
+    # 5. Authentication / Forbidden
+    if "401" in r_low or "unauthorized" in r_low:
+        return "Auth Required (401)"
+    if any(k in r_low for k in ["cloudflare", "bot protection", "waf", "captcha", "ddos-guard", "incapsula"]):
+        return "Bot Protection (WAF)"
+    if "403" in r_low or "forbidden" in r_low:
+        return "Forbidden (403)"
+
+    # 6. HTTP Status Codes
+    if "404" in r_low or "not found" in r_low:
+        return "Not Found (404)"
+    if "500" in r_low or "internal server error" in r_low:
+        return "Server Error (500)"
+    if "502" in r_low or "bad gateway" in r_low:
+        return "Bad Gateway (502)"
+    if "503" in r_low or "service unavailable" in r_low:
+        return "Service Unavailable (503)"
+    if "504" in r_low or "gateway timeout" in r_low:
+        return "Gateway Timeout (504)"
+    if any(k in r_low for k in ["5xx", "server error"]):
+        return "Server Error (5xx)"
+
+    # 7. Parse Errors
+    if any(k in r_low for k in ["parseerror", "jsondecodeerror", "syntaxerror", "malformed"]):
+        return "Malformed Response"
+
+    # 8. Short clean string or fallback
+    clean = reason.strip()
+    if len(clean) <= 28 and not any(
+        x in r_low for x in ["httpconnection", "httpsconnection", "traceback", "caused by", "socket"]
+    ):
+        return clean
+
+    classified = classify_harvest_error(reason)
+    if classified.startswith("Network: "):
+        return classified[len("Network: ") :]
+    if classified.startswith("HTTP "):
+        return classified
+    if classified != "Other Error":
+        return classified
+
+    return "Connection Failure"
 
 
 def analyze_harvest_errors(
@@ -665,6 +781,218 @@ def format_response_latency(
         return f"[bold red]🔴 {lat:.1f}s[/bold red]"
 
 
+def _is_parked_or_domain_sale(orig_host: str, resp: requests.Response) -> bool:
+    """Check if the response indicates the domain has expired, is parked, or is up for sale."""
+    raw_url = getattr(resp, "url", None)
+    if not isinstance(raw_url, str) or not raw_url:
+        return False
+
+    final_url = raw_url.lower()
+    final_host = (urllib.parse.urlparse(raw_url).hostname or "").lower()
+
+    parking_domains = [
+        "hugedomains",
+        "dan.com",
+        "sedo.com",
+        "sedoparking",
+        "godaddy",
+        "afternic",
+        "parkingcrew",
+        "bodis",
+        "domainmarket",
+        "namecheap",
+    ]
+    if any(p in final_url for p in parking_domains):
+        return True
+
+    # Check for domain mismatch on HTTP redirect
+    history = getattr(resp, "history", None)
+    if history and isinstance(history, list) and final_host:
+        orig_clean = orig_host.lower().strip()
+        orig_parts = orig_clean.split(".")
+        final_parts = final_host.split(".")
+        orig_base = ".".join(orig_parts[-2:]) if len(orig_parts) >= 2 else orig_clean
+        final_base = ".".join(final_parts[-2:]) if len(final_parts) >= 2 else final_host
+        if orig_base != final_base:
+            headers = getattr(resp, "headers", {})
+            ct = headers.get("content-type", "") if isinstance(headers, dict) else ""
+            if "text/html" in str(ct).lower():
+                raw_text = getattr(resp, "text", "")
+                content_low = raw_text[:3000].lower() if isinstance(raw_text, str) else ""
+                sale_keywords = [
+                    "domain is for sale",
+                    "buy this domain",
+                    "domain has expired",
+                    "parked free",
+                    "domain parking",
+                    "domain name may be for sale",
+                    "inquire about this domain",
+                ]
+                if any(k in content_low for k in sale_keywords):
+                    return True
+                return True
+
+    return False
+
+
+def _probe_nada_url(
+    base_url: str,
+    clean_host: str,
+    headers: dict[str, str],
+    timeout: int,
+    query: str | None = None,
+) -> dict[str, Any]:
+    """Probe a single base URL (http or https) for NADA API / catalog endpoints."""
+    res: dict[str, Any] = {
+        "is_nada": False,
+        "studies": 0,
+        "collections": 0,
+        "version": None,
+        "requires_token": False,
+        "error": None,
+        "is_ssl_error": False,
+        "latency_seconds": None,
+    }
+    t0 = time.time()
+    try:
+        # 1. Probe collections endpoint
+        coll_url = f"{base_url}/index.php/api/catalog/collections"
+        r_coll = requests.get(coll_url, headers=headers, timeout=timeout)
+        if _is_parked_or_domain_sale(clean_host, r_coll):
+            res["error"] = "Domain For Sale"
+        elif r_coll.status_code == 200:
+            try:
+                coll_data = r_coll.json()
+                if isinstance(coll_data, list):
+                    res["is_nada"] = True
+                    res["collections"] = len(coll_data)
+                elif isinstance(coll_data, dict):
+                    if "result" in coll_data:
+                        res["is_nada"] = True
+                        if isinstance(coll_data["result"], list):
+                            res["collections"] = len(coll_data["result"])
+                        elif isinstance(coll_data["result"], dict):
+                            res["collections"] = len(coll_data["result"])
+                    elif "collections" in coll_data:
+                        res["is_nada"] = True
+                        if isinstance(coll_data["collections"], list):
+                            res["collections"] = len(coll_data["collections"])
+                    elif coll_data.get("status") in ("success", "ok"):
+                        res["is_nada"] = True
+            except Exception:
+                pass
+        elif r_coll.status_code == 401:
+            res["is_nada"] = True
+            res["requires_token"] = True
+
+        r_search: requests.Response | None = None
+        r_v4: requests.Response | None = None
+
+        # 2. Probe search endpoint for total studies
+        if res["error"] != "Domain For Sale":
+            search_url = f"{base_url}/index.php/api/catalog/search?ps=1"
+            if query:
+                search_url += f"&sk={urllib.parse.quote(query)}"
+            r_search = requests.get(search_url, headers=headers, timeout=timeout)
+            if _is_parked_or_domain_sale(clean_host, r_search):
+                res["error"] = "Domain For Sale"
+                res["is_nada"] = False
+            elif r_search.status_code == 200:
+                try:
+                    s_data = r_search.json()
+                    if isinstance(s_data, dict) and (
+                        "result" in s_data or "rows" in s_data or s_data.get("status") == "success"
+                    ):
+                        res["is_nada"] = True
+                        res["version"] = "5"
+                        res_dict = s_data.get("result", {})
+                        if isinstance(res_dict, dict):
+                            res["studies"] = res_dict.get("total", len(res_dict.get("rows", [])))
+                        elif isinstance(res_dict, list):
+                            res["studies"] = len(res_dict)
+                except Exception:
+                    pass
+
+        # 3. Probe v4 CSV export endpoint
+        if not res["is_nada"] and res["error"] != "Domain For Sale":
+            v4_url = f"{base_url}/index.php/catalog/export/csv?ps=1"
+            r_v4 = requests.get(v4_url, headers=headers, timeout=timeout)
+            if _is_parked_or_domain_sale(clean_host, r_v4):
+                res["error"] = "Domain For Sale"
+            elif r_v4.status_code == 200:
+                txt = r_v4.text
+                if txt.startswith("\ufeff"):
+                    txt = txt[1:]
+                txt_low = txt[:50].lower()
+                if "id,surveyid" in txt_low or '"id","surveyid"' in txt_low:
+                    res["is_nada"] = True
+                    res["version"] = "4"
+
+        # 4. For v4 servers, extract total study count from catalog page HTML
+        if res["is_nada"] and res.get("version") == "4" and res.get("studies", 0) == 0:
+            try:
+                cat_url = f"{base_url}/index.php/catalog"
+                r_cat = requests.get(cat_url, headers=headers, timeout=timeout)
+                if r_cat.status_code == 200:
+                    html_txt = r_cat.text
+                    m_sc = re.search(
+                        r'class=["\']search-count["\'][^>]*>(.*?)</div>',
+                        html_txt,
+                        re.IGNORECASE | re.DOTALL,
+                    )
+                    if m_sc:
+                        nums = re.findall(r"<b>\s*([0-9,]+)\s*</b>", m_sc.group(1))
+                        if nums:
+                            clean_nums = [int(n.replace(",", "")) for n in nums if n.replace(",", "").isdigit()]
+                            if clean_nums:
+                                res["studies"] = max(clean_nums)
+                    if res.get("studies", 0) == 0:
+                        m_of = re.search(
+                            r"(?:parmi|of|out of|de)\s+<b>\s*([0-9,]+)\s*</b>",
+                            html_txt,
+                            re.IGNORECASE,
+                        )
+                        if m_of:
+                            val_str = m_of.group(1).replace(",", "")
+                            if val_str.isdigit():
+                                res["studies"] = int(val_str)
+            except Exception:
+                pass
+
+        if not res["is_nada"] and not res["error"]:
+            for r_probe in [r_search, r_coll, r_v4]:
+                if r_probe is not None and r_probe.status_code == 403:
+                    if any(
+                        k in r_probe.text.lower()
+                        for k in ["cloudflare", "just a moment", "challenge-platform", "waf", "ddos-guard"]
+                    ):
+                        res["error"] = "Bot Protection (WAF)"
+                    else:
+                        res["error"] = "Forbidden (403)"
+                    break
+            if not res["error"]:
+                res["error"] = "Not a NADA server"
+
+        res["latency_seconds"] = round(time.time() - t0, 2)
+
+    except requests.exceptions.SSLError as ssl_err:
+        res["latency_seconds"] = round(time.time() - t0, 2)
+        res["error"] = abbreviate_error(str(ssl_err))
+        res["is_ssl_error"] = True
+    except requests.exceptions.Timeout:
+        res["latency_seconds"] = round(time.time() - t0, 2)
+        res["error"] = f"Timeout ({timeout}s)"
+    except Exception as e:
+        res["latency_seconds"] = round(time.time() - t0, 2)
+        abbr = abbreviate_error(str(e))
+        res["error"] = abbr
+        res["is_ssl_error"] = (
+            abbr.startswith("SSL ") or "ssl" in str(e).lower() or isinstance(e, requests.exceptions.SSLError)
+        )
+
+    return res
+
+
 def fetch_server_stats(
     host: str,
     query: str | None = None,
@@ -675,10 +1003,10 @@ def fetch_server_stats(
     cache_ttl_hours: float = 24.0,
 ) -> dict[str, Any]:
     """Retrieve counts of studies, collections, version and latency for a NADA server."""
+    is_explicit_http = host.lower().startswith("http://")
     clean_host = host.replace("https://", "").replace("http://", "").strip("/")
     if "/" in clean_host:
         clean_host = clean_host.split("/", 1)[0]
-    base_url = f"https://{clean_host}"
     headers = get_request_headers(host=clean_host, api_token=api_token, repo_root=repo_root)
 
     target_repo = repo_root or Path.cwd() / ".cache"
@@ -693,70 +1021,50 @@ def fetch_server_stats(
                     dt = datetime.fromisoformat(cached_at_str)
                     age_hours = (datetime.now(UTC) - dt).total_seconds() / 3600.0
                     if age_hours < cache_ttl_hours:
-                        cdata["cached"] = True
-                        return cdata
+                        # Auto-invalidate stale false-positive cache entries (e.g. 0-study 'is_nada=True')
+                        if cdata.get("is_nada") and cdata.get("studies", 0) == 0 and not cdata.get("requires_token"):
+                            pass  # Re-verify live using strict payload validation
+                        else:
+                            cdata["cached"] = True
+                            return cdata
         except Exception:
             pass
 
-    stats: dict[str, Any] = {
-        "server": clean_host,
-        "studies": 0,
-        "collections": 0,
-        "is_nada": False,
-        "requires_token": False,
-        "error": None,
-        "version": None,
-        "latency_seconds": None,
-    }
+    primary_scheme = "http" if is_explicit_http else "https"
+    primary_url = f"{primary_scheme}://{clean_host}"
 
-    t0 = time.time()
-    try:
-        # 1. Probe collections endpoint
-        coll_url = f"{base_url}/index.php/api/catalog/collections"
-        r_coll = requests.get(coll_url, headers=headers, timeout=timeout)
-        if r_coll.status_code == 200:
-            stats["is_nada"] = True
-            try:
-                coll_data = r_coll.json()
-                if isinstance(coll_data, list):
-                    stats["collections"] = len(coll_data)
-                elif isinstance(coll_data, dict) and "result" in coll_data:
-                    stats["collections"] = len(coll_data["result"])
-            except Exception:
-                pass
-        elif r_coll.status_code == 401:
-            stats["is_nada"] = True
-            stats["requires_token"] = True
+    stats = _probe_nada_url(primary_url, clean_host, headers, timeout, query=query)
+    stats["server"] = clean_host
+    stats["scheme"] = primary_scheme
 
-        # 2. Probe search endpoint for total studies
-        search_q = urllib.parse.quote(query) if query else "*"
-        search_url = f"{base_url}/index.php/api/catalog/search?sk={search_q}&ps=1"
-        r_search = requests.get(search_url, headers=headers, timeout=timeout)
-        if r_search.status_code == 200:
-            stats["is_nada"] = True
-            stats["version"] = "5"
-            try:
-                s_data = r_search.json()
-                res = s_data.get("result", {})
-                stats["studies"] = res.get("total", len(res.get("rows", [])))
-            except Exception:
-                pass
-        elif not stats["is_nada"]:
-            # Check v4 export CSV
-            v4_url = f"{base_url}/index.php/catalog/export/csv?ps=1"
-            r_v4 = requests.get(v4_url, headers=headers, timeout=timeout)
-            if r_v4.status_code == 200 and ("id,surveyid" in r_v4.text or "\ufeffid,surveyid" in r_v4.text):
+    # Enhancement 1: If server is on HTTP, check if HTTPS is available and recommend switching if fully functional
+    if primary_scheme == "http" and stats.get("is_nada"):
+        try:
+            https_url = f"https://{clean_host}"
+            https_stats = _probe_nada_url(https_url, clean_host, headers, timeout=min(5, timeout), query=query)
+            if https_stats.get("is_nada") and not https_stats.get("is_ssl_error") and not https_stats.get("error"):
+                stats["https_available"] = True
+                stats["https_upgrade_recommended"] = True
+        except Exception:
+            pass
+
+    # Enhancement 2: If primary was HTTPS and SSL failed, check if we can fall back to HTTP
+    if primary_scheme == "https" and stats.get("is_ssl_error"):
+        try:
+            http_url = f"http://{clean_host}"
+            http_stats = _probe_nada_url(http_url, clean_host, headers, timeout=timeout, query=query)
+            if http_stats.get("is_nada"):
                 stats["is_nada"] = True
-                stats["version"] = "4"
-
-        stats["latency_seconds"] = round(time.time() - t0, 2)
-
-    except requests.exceptions.Timeout:
-        stats["latency_seconds"] = round(time.time() - t0, 2)
-        stats["error"] = f"Timeout ({timeout}s)"
-    except Exception as e:
-        stats["latency_seconds"] = round(time.time() - t0, 2)
-        stats["error"] = str(e)
+                stats["studies"] = http_stats["studies"]
+                stats["collections"] = http_stats["collections"]
+                stats["version"] = http_stats["version"]
+                stats["requires_token"] = http_stats["requires_token"]
+                stats["http_fallback"] = True
+                stats["ssl_error"] = stats.get("error")
+                stats["error"] = None
+                stats["scheme"] = "http"
+        except Exception:
+            pass
 
     # Cache results
     try:
@@ -801,13 +1109,13 @@ def display_server_stats(
     table.add_column("Country", style="green", justify="center")
     table.add_column("Ver", style="dim", justify="center")
     table.add_column("Studies", justify="right", style="cyan")
-    table.add_column("Collections", justify="right", style="yellow")
     table.add_column("Latency", justify="center")
     table.add_column("Status", justify="left")
 
     def _query_stat(inst: ServerInstallation) -> tuple[ServerInstallation, dict[str, Any]]:
+        host_to_query = inst.url if inst.scheme == "http" else inst.clean_hostname
         s = fetch_server_stats(
-            host=inst.clean_hostname,
+            host=host_to_query,
             query=query,
             api_token=api_token,
             timeout=timeout,
@@ -817,35 +1125,68 @@ def display_server_stats(
         )
         return inst, s
 
-    with console.status("[bold green]Querying NADA servers..."):
-        with ThreadPoolExecutor(max_workers=min(8, len(installations))) as executor:
-            futures = [executor.submit(_query_stat, inst) for inst in installations]
-            for future in as_completed(futures):
+    stat_results: list[tuple[ServerInstallation, dict[str, Any]]] = []
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        MofNCompleteColumn(),
+        TimeRemainingColumn(),
+        console=console,
+    ) as prog:
+        task = prog.add_task("[bold green]Querying NADA servers...", total=len(installations))
+        with ThreadPoolExecutor(max_workers=min(12, len(installations))) as executor:
+            future_to_inst = {executor.submit(_query_stat, inst): inst for inst in installations}
+            for future in as_completed(future_to_inst):
                 inst, stat = future.result()
-                name_disp = inst.name or inst.clean_hostname
-                clickable_host = f"[link={inst.url}]{name_disp}[/link]" if inst.url else name_disp
-                cc = inst.country_code or "-"
-                ver_disp = format_version(stat.get("version") or inst.version)
-                studies_disp = f"{stat.get('studies', 0):,}" if stat.get("is_nada") else "-"
-                colls_disp = f"{stat.get('collections', 0):,}" if stat.get("is_nada") else "-"
+                stat_results.append((inst, stat))
+                prog.update(task, advance=1, description=f"[bold green]Querying:[/] {inst.clean_hostname}")
 
-                lat = stat.get("latency_seconds")
-                is_err = bool(stat.get("error"))
-                is_nada = bool(stat.get("is_nada"))
-                req_tok = bool(stat.get("requires_token"))
+    def _format_count(val: Any) -> str:
+        if val is None or val == "-":
+            return "-"
+        if isinstance(val, int | float):
+            return f"{int(val):,}"
+        if isinstance(val, str):
+            clean = val.replace(",", "").strip()
+            if clean.isdigit():
+                return f"{int(clean):,}"
+            return val
+        return str(val)
 
-                lat_badge = format_response_latency(lat, is_online=is_nada, requires_token=req_tok, is_error=is_err)
+    for inst, stat in stat_results:
+        name_disp = inst.name or inst.clean_hostname
+        clickable_host = f"[link={inst.url}]{name_disp}[/link]" if inst.url else name_disp
+        cc = inst.country_code or "-"
+        ver_disp = format_version(stat.get("version") or inst.version)
+        studies_disp = _format_count(stat.get("studies", 0)) if stat.get("is_nada") else "-"
 
-                if stat.get("error"):
-                    status_text = f"[red]{stat['error']}[/red]"
-                elif req_tok:
-                    status_text = "[yellow]Auth Required[/yellow]"
-                elif stat.get("cached"):
-                    status_text = "[dim cyan]Cached (24h)[/dim cyan]"
-                else:
-                    status_text = "[green]Online[/green]"
+        lat = stat.get("latency_seconds")
+        is_err = bool(stat.get("error"))
+        is_nada = bool(stat.get("is_nada"))
+        req_tok = bool(stat.get("requires_token"))
 
-                table.add_row(clickable_host, cc, ver_disp, studies_disp, colls_disp, lat_badge, status_text)
+        lat_badge = format_response_latency(lat, is_online=is_nada, requires_token=req_tok, is_error=is_err)
+
+        if not is_nada:
+            if stat.get("error"):
+                status_text = f"[red]{abbreviate_error(str(stat['error']))}[/red]"
+            else:
+                status_text = "[red]Not NADA Server[/red]"
+        elif stat.get("http_fallback"):
+            status_text = "[yellow]HTTP (SSL Failed)[/yellow]"
+        elif stat.get("https_upgrade_recommended"):
+            status_text = "[cyan]Online (HTTPS Avail)[/cyan]"
+        elif req_tok:
+            status_text = "[yellow]Auth Required[/yellow]"
+        elif stat.get("cached"):
+            status_text = "[dim cyan]Cached (24h)[/dim cyan]"
+        else:
+            status_text = "[green]Online[/green]"
+
+        table.add_row(clickable_host, cc, ver_disp, studies_disp, lat_badge, status_text)
 
     console.print(table)
 
@@ -882,15 +1223,26 @@ def fetch_active_studies(
                     dt = datetime.fromisoformat(cached_at_str)
                     age_hours = (datetime.now(UTC) - dt).total_seconds() / 3600.0
                     if age_hours < cache_ttl_hours:
-                        cached_studies = cdata.get("studies", {})
-                        if limit:
-                            filtered = dict(list(cached_studies.items())[:limit])
-                            return filtered
-                        return cached_studies
+                        if cdata.get("query") == query and cdata.get("since_date") == since_date:
+                            cached_studies = cdata.get("studies", {})
+                            cached_count = len(cached_studies)
+                            is_complete = cdata.get("is_complete", False)
+                            total_server = cdata.get("total")
+
+                            if limit:
+                                if cached_count >= limit:
+                                    return dict(list(cached_studies.items())[:limit])
+                                if is_complete or (total_server is not None and cached_count >= total_server):
+                                    return cached_studies
+                                # Partial cache with fewer studies than requested limit -> fetch live from server
+                            else:
+                                if is_complete or (total_server is not None and cached_count >= total_server):
+                                    return cached_studies
         except Exception:
             pass
 
     active_studies: dict[str, dict[str, Any]] = {}
+    server_total: int | None = None
 
     if target_idno:
         # Directly request target study
@@ -906,10 +1258,11 @@ def fetch_active_studies(
     # Discover studies using Catalog Search API
     page = 1
     per_page = 100
-    sk_query = query if query else "*"
 
     while True:
-        url = f"{base_url}/index.php/api/catalog/search?sk={urllib.parse.quote(sk_query)}&ps={per_page}&page={page}"
+        url = f"{base_url}/index.php/api/catalog/search?ps={per_page}&page={page}"
+        if query:
+            url += f"&sk={urllib.parse.quote(query)}"
         if since_date:
             url += f"&created={urllib.parse.quote(since_date)}"
 
@@ -925,6 +1278,8 @@ def fetch_active_studies(
             res = data.get("result", {})
             rows = res.get("rows", [])
             total = res.get("total", len(rows))
+            if isinstance(total, int):
+                server_total = total
 
             if not rows:
                 break
@@ -957,18 +1312,74 @@ def fetch_active_studies(
             page += 1
         except Exception as e:
             file_logger.log(f"[API] Search query error: {e}", level="ERROR")
-            break
+    # Fallback for NADA v4 servers (which do not expose the v5 JSON search API)
+    if not active_studies:
+        try:
+            v4_csv_url = f"{base_url}/index.php/catalog/export/csv?ps=5000"
+            r_v4_csv = requests.get(v4_csv_url, headers=headers, timeout=25)
+            if r_v4_csv.status_code == 200:
+                csv_lines = r_v4_csv.text.splitlines()
+                header_idx = -1
+                for idx, line in enumerate(csv_lines):
+                    clean_line = line.strip().lstrip("\ufeff").lower()
+                    if clean_line.startswith("id,surveyid") or clean_line.startswith('"id","surveyid"'):
+                        header_idx = idx
+                        break
+                if header_idx != -1:
+                    import csv as _csv
+                    import io as _io
+
+                    reader = _csv.DictReader(_io.StringIO("\n".join(csv_lines[header_idx:])))
+                    for row in reader:
+                        survey_id = row.get("surveyid") or row.get("id")
+                        if not survey_id:
+                            continue
+                        survey_id = survey_id.strip()
+                        active_studies[survey_id] = {
+                            "idno": survey_id,
+                            "id": str(row.get("id", survey_id)),
+                            "title": row.get("titl") or row.get("title") or survey_id,
+                            "nation": row.get("nation", ""),
+                            "created": row.get("created"),
+                            "changed": row.get("changed") or row.get("created"),
+                            "form_model": "survey",
+                        }
+                        if limit and len(active_studies) >= limit:
+                            break
+                    if catalog_progress_callback and active_studies:
+                        catalog_progress_callback(len(active_studies), len(active_studies))
+        except Exception as e:
+            file_logger.log(f"[API] v4 CSV fallback error: {e}", level="ERROR")
 
     # Write to local cache
     if cache_file and active_studies:
         try:
             cache_file.parent.mkdir(parents=True, exist_ok=True)
+            merged_studies = dict(active_studies)
+            if cache_file.exists():
+                try:
+                    with open(cache_file, encoding="utf-8") as f_prev:
+                        prev_cdata = json.load(f_prev)
+                        if prev_cdata.get("query") == query and prev_cdata.get("since_date") == since_date:
+                            prev_studies = prev_cdata.get("studies", {})
+                            for k, v in prev_studies.items():
+                                if k not in merged_studies:
+                                    merged_studies[k] = v
+                            if server_total is None and prev_cdata.get("total"):
+                                server_total = prev_cdata.get("total")
+                except Exception:
+                    pass
+
+            is_complete = bool(server_total is not None and len(merged_studies) >= server_total)
             cache_data = {
                 "server": clean_host,
                 "cached_at": datetime.now(UTC).isoformat(),
                 "query": query,
-                "count": len(active_studies),
-                "studies": active_studies,
+                "since_date": since_date,
+                "count": len(merged_studies),
+                "total": server_total,
+                "is_complete": is_complete,
+                "studies": merged_studies,
             }
             with open(cache_file, "w", encoding="utf-8") as f:
                 json.dump(cache_data, f, indent=2)
@@ -984,8 +1395,9 @@ def fetch_study_record(
     metadata_format: str = "ddi",
     verbose: bool = False,
     api_token: str | None = None,
+    study_id: str | None = None,
 ) -> tuple[bytes | None, str, str | None]:
-    """Fetch study metadata in the specified format (ddi, json, resources).
+    """Fetch study metadata in the specified format (ddi, json, resources, croissant, schema).
     Returns (content_bytes, file_extension, error_reason).
     """
     clean_host = host.replace("https://", "").replace("http://", "").strip("/")
@@ -1005,6 +1417,46 @@ def fetch_study_record(
     elif fmt == "resources":
         url = f"{base_url}/index.php/api/catalog/resources/{encoded_idno}"
         ext = ".resources.json"
+    elif fmt == "croissant":
+        url = f"{base_url}/index.php/api/catalog/croissant/{encoded_idno}"
+        ext = ".croissant.json"
+    elif fmt in ("schema", "schema.org", "json-ld"):
+        ext = ".schema.jsonld"
+        candidate_urls = [
+            f"{base_url}/index.php/catalog/study/{encoded_idno}",
+        ]
+        if study_id and str(study_id).strip() != encoded_idno:
+            candidate_urls.append(f"{base_url}/index.php/catalog/{urllib.parse.quote(str(study_id).strip())}")
+        candidate_urls.append(f"{base_url}/index.php/catalog/{encoded_idno}")
+
+        html_text = None
+        for cand_url in candidate_urls:
+            if verbose:
+                console.print(f"[dim]  [API] GET {cand_url}[/dim]")
+            file_logger.log(f"[API] GET {cand_url}")
+            try:
+                r_cand = requests.get(cand_url, headers=headers, timeout=25)
+                if r_cand.status_code == 200 and "application/ld+json" in r_cand.text:
+                    html_text = r_cand.text
+                    break
+            except Exception:
+                pass
+
+        if html_text:
+            m = re.search(
+                r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
+                html_text,
+                re.DOTALL | re.IGNORECASE,
+            )
+            if m:
+                try:
+                    parsed_json = json.loads(m.group(1).strip())
+                    content_bytes = json.dumps(parsed_json, indent=2, ensure_ascii=False).encode("utf-8")
+                    return content_bytes, ext, None
+                except Exception as e:
+                    return None, ext, f"Invalid JSON-LD in Schema.org script block: {e}"
+            return None, ext, "No application/ld+json script block found on study landing page"
+        return None, ext, "Study landing page not found or does not contain Schema.org JSON-LD"
     else:
         return None, f".{fmt}", f"Unsupported format '{fmt}'"
 
@@ -1077,6 +1529,7 @@ class ServerHarvester:
         api_token: str | None = None,
         progress_callback=None,
         catalog_progress_callback=None,
+        workers: int = 4,
     ) -> dict[str, list[Any]]:
         """Perform intelligent incremental sync (Additions, Updates, Deletions)."""
         effective_limit = None if limit == 0 else limit
@@ -1144,33 +1597,49 @@ class ServerHarvester:
                             del self.manifest["records"][key]
 
         total_items = len(active_studies) * len(target_formats)
-        current_item = 0
+        work_items = [(idno, fmt, meta) for idno, meta in active_studies.items() for fmt in target_formats]
+        completed_count = 0
+        manifest_lock = threading.Lock()
 
-        for idno, meta in active_studies.items():
-            for fmt in target_formats:
-                current_item += 1
-                if progress_callback:
-                    progress_callback(current_item, total_items, idno, fmt, meta)
+        def _notify_progress(pid: str, fmt_str: str, meta_dict: dict[str, Any], fname: str) -> None:
+            nonlocal completed_count
+            completed_count += 1
+            if progress_callback:
+                m_with_file = dict(meta_dict)
+                m_with_file["filename"] = fname
+                try:
+                    progress_callback(completed_count, total_items, pid, fmt_str, m_with_file, filename=fname)
+                except TypeError:
+                    progress_callback(completed_count, total_items, pid, fmt_str, m_with_file)
 
-                rec_key = f"{idno}::{fmt}"
+        def _process_item(item: tuple[str, str, dict[str, Any]]) -> None:
+            idno, fmt, meta = item
+            rec_key = f"{idno}::{fmt}"
+            ext = get_format_extension(fmt)
+            file_path, rel_path = get_dataset_metadata_path(self.server_dir, idno, ext=ext)
+            fname = rel_path
 
-                # Check non-recoverable error in manifest
+            # Check non-recoverable error in manifest
+            with manifest_lock:
                 manifest_errors = self.manifest.get("errors", {})
                 if rec_key in manifest_errors and not retry_errors:
-                    cached_err = manifest_errors[rec_key].get("reason", "Non-recoverable error")
-                    stats["errors"].append(
-                        {
-                            "key": rec_key,
-                            "pid": idno,
-                            "name": meta.get("title"),
-                            "format": fmt,
-                            "reason": f"[Manifest Cached Error] {cached_err}",
-                        }
-                    )
-                    continue
+                    cached_err_entry = manifest_errors[rec_key]
+                    cached_err = cached_err_entry.get("reason", "Non-recoverable error")
+                    # Only skip if the error is non-recoverable/permanent; transient errors are auto-retried
+                    if is_non_recoverable_error(cached_err) or cached_err_entry.get("recoverable") is False:
+                        stats["errors"].append(
+                            {
+                                "key": rec_key,
+                                "pid": idno,
+                                "name": meta.get("title"),
+                                "format": fmt,
+                                "reason": f"[Manifest Cached Error] {cached_err}",
+                            }
+                        )
+                        _notify_progress(idno, fmt, meta, fname)
+                        return
 
-                ext = get_format_extension(fmt)
-                file_path, rel_path = get_dataset_metadata_path(self.server_dir, idno, ext=ext)
+            with manifest_lock:
                 is_new = rec_key not in existing_keys or not file_path.exists()
 
                 # Fast Timestamp Check
@@ -1180,44 +1649,52 @@ class ServerHarvester:
 
                 if not is_new and meta_changed and prev_changed and meta_changed == prev_changed and not force_verify:
                     stats["unchanged"].append(rec_key)
-                    continue
+                    _notify_progress(idno, fmt, meta, fname)
+                    return
 
                 action = "added" if is_new else "updated"
 
                 if dry_run:
                     stats[action].append(rec_key)
-                    continue
+                    _notify_progress(idno, fmt, meta, fname)
+                    return
 
-                # Fetch record
-                content_bytes, _, err_msg = fetch_study_record(
-                    self.host, idno, metadata_format=fmt, verbose=verbose, api_token=api_token
-                )
+            # Fetch record (unlocked network I/O)
+            content_bytes, _, err_msg = fetch_study_record(
+                self.host,
+                idno,
+                metadata_format=fmt,
+                verbose=verbose,
+                api_token=api_token,
+                study_id=meta.get("id"),
+            )
 
+            with manifest_lock:
                 if content_bytes:
                     content_hash = hashlib.sha256(content_bytes).hexdigest()
                     prev_hash = manifest_records.get(rec_key, {}).get("sha256")
                     if not is_new and prev_hash == content_hash:
                         stats["unchanged"].append(rec_key)
-                        self.manifest["records"][rec_key]["updated_at"] = meta_changed
-                        continue
+                        if rec_key in self.manifest.get("records", {}):
+                            self.manifest["records"][rec_key]["updated_at"] = meta_changed
+                    else:
+                        file_path.parent.mkdir(parents=True, exist_ok=True)
+                        with open(file_path, "wb") as f:
+                            f.write(content_bytes)
 
-                    file_path.parent.mkdir(parents=True, exist_ok=True)
-                    with open(file_path, "wb") as f:
-                        f.write(content_bytes)
+                        self.manifest.setdefault("records", {})[rec_key] = {
+                            "global_id": idno,
+                            "path": rel_path,
+                            "filename": file_path.name,
+                            "format": fmt,
+                            "sha256": content_hash,
+                            "updated_at": meta_changed,
+                            "synced_at": datetime.now(UTC).isoformat(),
+                        }
+                        if rec_key in self.manifest.get("errors", {}):
+                            del self.manifest["errors"][rec_key]
 
-                    self.manifest["records"][rec_key] = {
-                        "global_id": idno,
-                        "path": rel_path,
-                        "filename": file_path.name,
-                        "format": fmt,
-                        "sha256": content_hash,
-                        "updated_at": meta_changed,
-                        "synced_at": datetime.now(UTC).isoformat(),
-                    }
-                    if rec_key in self.manifest["errors"]:
-                        del self.manifest["errors"][rec_key]
-
-                    stats[action].append(rec_key)
+                        stats[action].append(rec_key)
                 else:
                     stats["errors"].append(
                         {
@@ -1228,13 +1705,23 @@ class ServerHarvester:
                             "reason": err_msg or "Unknown error",
                         }
                     )
-                    if is_non_recoverable_error(err_msg):
-                        self.manifest["errors"][rec_key] = {
-                            "pid": idno,
-                            "format": fmt,
-                            "reason": err_msg,
-                            "failed_at": datetime.now(UTC).isoformat(),
-                        }
+                    self.manifest.setdefault("errors", {})[rec_key] = {
+                        "pid": idno,
+                        "format": fmt,
+                        "reason": err_msg or "Unknown error",
+                        "failed_at": datetime.now(UTC).isoformat(),
+                        "recoverable": not is_non_recoverable_error(err_msg),
+                    }
+
+                _notify_progress(idno, fmt, meta, fname)
+
+        effective_workers = max(1, workers)
+        if effective_workers <= 1 or len(work_items) <= 1:
+            for item in work_items:
+                _process_item(item)
+        else:
+            with ThreadPoolExecutor(max_workers=effective_workers) as executor:
+                list(executor.map(_process_item, work_items))
 
         if not dry_run:
             self._save_manifest()
@@ -1325,6 +1812,14 @@ def harvest(
             help="Force catalog cache refresh from server.",
         ),
     ] = False,
+    workers: Annotated[
+        int,
+        typer.Option(
+            "--workers",
+            "-w",
+            help="Number of concurrent worker threads for harvesting (1 for sequential).",
+        ),
+    ] = 4,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -1358,7 +1853,7 @@ def harvest(
     console.print(
         Panel(
             f"[bold cyan]NADA Metadata Harvester[/bold cyan]\n"
-            f"Servers: {len(installations)} | Formats: {formats} | Limit: {limit or 'Unlimited'}\n"
+            f"Servers: {len(installations)} | Formats: {formats} | Limit: {limit or 'Unlimited'} | Workers: {workers}\n"
             f"Storage: {base_repo}",
             expand=False,
         )
@@ -1372,26 +1867,46 @@ def harvest(
     summary_table.add_column("Unchanged", justify="right", style="dim")
     summary_table.add_column("Errors", justify="right", style="red")
 
+    total_harvest_errors = 0
     for inst in installations:
         host = inst.clean_hostname
         harvester = ServerHarvester(host, base_repo)
 
         with Progress(
             SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
+            TextColumn("[bold cyan]{task.fields[server]}[/bold cyan]"),
+            BarColumn(bar_width=20),
             TaskProgressColumn(),
             MofNCompleteColumn(),
-            TimeRemainingColumn(),
+            TimeElapsedColumn(),
+            TextColumn("[dim]{task.fields[filename]}[/dim]"),
             console=console,
         ) as prog:
-            task = prog.add_task(f"Syncing {host}...", total=None)
+            task = prog.add_task(
+                f"Syncing {host}...",
+                total=None,
+                server=host,
+                filename="Fetching catalog...",
+            )
 
-            def update_progress(cur, total, pid, fmt, _meta, t_id=task, t_host=host):
-                prog.update(t_id, total=total, completed=cur, description=f"{t_host}: {pid} ({fmt})")
+            sync_started = False
 
-            def update_cat(cur, total, t_id=task, t_host=host):
-                prog.update(t_id, total=total, completed=cur, description=f"{t_host}: Catalog ({cur}/{total})")
+            def _truncate_filename(name: str, max_len: int = 35) -> str:
+                if len(name) <= max_len:
+                    return name
+                half = (max_len - 1) // 2
+                return name[:half] + "…" + name[-(max_len - 1 - half) :]
+
+            def update_progress(cur, total, pid, fmt, meta, filename=None, t_id=task):
+                nonlocal sync_started
+                if not sync_started:
+                    prog.reset(t_id, total=total, completed=0)
+                    sync_started = True
+                raw_fname = filename or meta.get("filename") or f"{pid} ({fmt})"
+                prog.update(t_id, total=total, completed=cur, filename=_truncate_filename(raw_fname))
+
+            def update_cat(cur, total, t_id=task):
+                prog.update(t_id, total=total, completed=cur, filename=f"Catalog ({cur}/{total})")
 
             results = harvester.sync(
                 query=query,
@@ -1405,18 +1920,32 @@ def harvest(
                 api_token=api_token,
                 progress_callback=update_progress,
                 catalog_progress_callback=update_cat,
+                workers=workers,
             )
 
+            if not sync_started:
+                prog.update(task, completed=0, total=0, filename="No active studies")
+            else:
+                prog.update(task, filename="Complete")
+
+        err_count = len(results.get("errors", []))
+        total_harvest_errors += err_count
         summary_table.add_row(
             host,
             str(len(results.get("datasets", []))),
             str(len(results.get("added", []))),
             str(len(results.get("updated", []))),
             str(len(results.get("unchanged", []))),
-            str(len(results.get("errors", []))),
+            str(err_count),
         )
 
     console.print(summary_table)
+
+    if total_harvest_errors > 0:
+        console.print(
+            "\n[yellow]⚠️ Encountered harvest errors on some records. "
+            "Run [bold]dartfx-nada errors --details[/bold] to inspect failure reasons.[/yellow]"
+        )
 
 
 if __name__ == "__main__":
