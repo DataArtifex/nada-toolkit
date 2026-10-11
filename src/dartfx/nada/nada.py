@@ -592,7 +592,7 @@ def fetch_nada_installations(
     for item in raw_list:
         if not isinstance(item, dict):
             continue
-        inst = ServerInstallation(**item)
+        inst = ServerInstallation.model_validate(item)
         if not inst.clean_hostname:
             continue
 
