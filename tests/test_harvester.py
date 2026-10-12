@@ -644,4 +644,5 @@ def test_server_dir_name_excludes_port(tmp_path: Path) -> None:
     assert harvester.host == "microdata.ubos.org:7070"
     assert harvester.dir_name == "microdata.ubos.org"
     assert harvester.server_dir == tmp_path / "microdata.ubos.org"
-    assert ":" not in str(harvester.server_dir)
+    assert ":" not in harvester.server_dir.name
+    assert ":" not in harvester.dir_name
