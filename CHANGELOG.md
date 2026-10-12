@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed harvest timer display by resetting progress state upon transition from catalog discovery to study synchronization and using `TimeElapsedColumn` for active stopwatch timing.
   - Cumulative catalog cache merging and partial-cache expansion handling, ensuring higher `--limit` requests query live servers while retaining previously cached studies.
   - Comprehensive harvest error persistence in `.manifest.json` ensuring both transient (recoverable) and permanent failures are captured, queryable via `dartfx-nada errors`, and automatically retried on subsequent runs.
+  - Robust parsing of string-formatted total study counts returned by some NADA server APIs (e.g. instances like `microdata.ubos.org:7070`), preventing Rich progress bar crashes and infinite search pagination loops.
 - **Expanded Metadata Standards**:
   - Added support for MLCommons Croissant (`croissant`) and Google Dataset Search Schema.org (`schema` / `.schema.jsonld`) in `dartfx-nada study` and metadata harvester subsystem (`--formats schema`).
   - New export methods on `NadaServer`: `get_study_croissant()` and `get_study_schema()`.

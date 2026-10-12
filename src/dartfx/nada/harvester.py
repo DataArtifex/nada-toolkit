@@ -907,7 +907,10 @@ def _probe_nada_url(
                         res["version"] = "5"
                         res_dict = s_data.get("result", {})
                         if isinstance(res_dict, dict):
-                            res["studies"] = res_dict.get("total", len(res_dict.get("rows", [])))
+                            try:
+                                res["studies"] = int(res_dict.get("total", len(res_dict.get("rows", []))))
+                            except (ValueError, TypeError):
+                                res["studies"] = len(res_dict.get("rows", []))
                         elif isinstance(res_dict, list):
                             res["studies"] = len(res_dict)
                 except Exception:
@@ -1227,7 +1230,13 @@ def fetch_active_studies(
                             cached_studies = cdata.get("studies", {})
                             cached_count = len(cached_studies)
                             is_complete = cdata.get("is_complete", False)
-                            total_server = cdata.get("total")
+                            raw_total_server = cdata.get("total")
+                            total_server: int | None = None
+                            if raw_total_server is not None:
+                                try:
+                                    total_server = int(raw_total_server)
+                                except (ValueError, TypeError):
+                                    total_server = None
 
                             if limit:
                                 if cached_count >= limit:
@@ -1277,9 +1286,12 @@ def fetch_active_studies(
             data = r.json()
             res = data.get("result", {})
             rows = res.get("rows", [])
-            total = res.get("total", len(rows))
-            if isinstance(total, int):
-                server_total = total
+            raw_total = res.get("total", len(rows))
+            try:
+                total = int(raw_total)
+            except (ValueError, TypeError):
+                total = len(rows)
+            server_total = total
 
             if not rows:
                 break
@@ -1312,6 +1324,7 @@ def fetch_active_studies(
             page += 1
         except Exception as e:
             file_logger.log(f"[API] Search query error: {e}", level="ERROR")
+            break
     # Fallback for NADA v4 servers (which do not expose the v5 JSON search API)
     if not active_studies:
         try:
@@ -1365,8 +1378,11 @@ def fetch_active_studies(
                             for k, v in prev_studies.items():
                                 if k not in merged_studies:
                                     merged_studies[k] = v
-                            if server_total is None and prev_cdata.get("total"):
-                                server_total = prev_cdata.get("total")
+                            if server_total is None and prev_cdata.get("total") is not None:
+                                try:
+                                    server_total = int(prev_cdata.get("total"))
+                                except (ValueError, TypeError):
+                                    pass
                 except Exception:
                     pass
 
@@ -1899,14 +1915,26 @@ def harvest(
 
             def update_progress(cur, total, pid, fmt, meta, filename=None, t_id=task):
                 nonlocal sync_started
+                clean_total: int | None = None
+                if total is not None:
+                    try:
+                        clean_total = int(total)
+                    except (ValueError, TypeError):
+                        clean_total = None
                 if not sync_started:
-                    prog.reset(t_id, total=total, completed=0)
+                    prog.reset(t_id, total=clean_total, completed=0)
                     sync_started = True
                 raw_fname = filename or meta.get("filename") or f"{pid} ({fmt})"
-                prog.update(t_id, total=total, completed=cur, filename=_truncate_filename(raw_fname))
+                prog.update(t_id, total=clean_total, completed=cur, filename=_truncate_filename(raw_fname))
 
             def update_cat(cur, total, t_id=task):
-                prog.update(t_id, total=total, completed=cur, filename=f"Catalog ({cur}/{total})")
+                clean_total: int | None = None
+                if total is not None:
+                    try:
+                        clean_total = int(total)
+                    except (ValueError, TypeError):
+                        clean_total = None
+                prog.update(t_id, total=clean_total, completed=cur, filename=f"Catalog ({cur}/{clean_total})")
 
             results = harvester.sync(
                 query=query,

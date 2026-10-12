@@ -538,3 +538,41 @@ def test_harvester_records_recoverable_and_non_recoverable_errors(monkeypatch, t
     assert "ERR-RECOVERABLE::ddi" in res_2["added"]
     assert "ERR-RECOVERABLE::ddi" not in harvester.manifest["errors"]
     assert "ERR-PERMANENT::ddi" in harvester.manifest["errors"]
+
+
+def test_fetch_active_studies_string_total(monkeypatch) -> None:
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json = MagicMock(
+        return_value={
+            "result": {
+                "total": "71",  # string total returned by some NADA servers (e.g. microdata.ubos.org:7070)
+                "rows": [
+                    {"idno": "ST-1", "title": "Study 1"},
+                    {"idno": "ST-2", "title": "Study 2"},
+                ],
+            }
+        }
+    )
+
+    monkeypatch.setattr(requests, "get", lambda *_args, **_kwargs: mock_resp)
+
+    progress_calls = []
+
+    def on_progress(cur, total):
+        progress_calls.append((cur, total))
+
+    studies = fetch_active_studies(
+        "microdata.ubos.org:7070",
+        limit=2,
+        catalog_progress_callback=on_progress,
+        refresh_catalog=True,
+    )
+
+    assert len(studies) == 2
+    assert "ST-1" in studies
+    assert "ST-2" in studies
+    assert len(progress_calls) >= 1
+    cur, total = progress_calls[0]
+    assert isinstance(total, int)
+    assert total == 2

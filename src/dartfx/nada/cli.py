@@ -196,7 +196,10 @@ def info(
                 if isinstance(search_res, dict):
                     res = search_res.get("result", {})
                     if isinstance(res, dict):
-                        studies_count = res.get("total", len(res.get("rows", [])))
+                        try:
+                            studies_count = int(res.get("total", len(res.get("rows", []))))
+                        except (ValueError, TypeError):
+                            studies_count = len(res.get("rows", []))
                     elif isinstance(res, list):
                         studies_count = len(res)
             from dartfx.nada.harvester import fetch_server_stats
@@ -431,7 +434,10 @@ def search(
     if isinstance(results, dict) and "result" in results:
         res = results["result"]
         rows = res.get("rows", [])
-        total = res.get("total", len(rows))
+        try:
+            total = int(res.get("total", len(rows)))
+        except (ValueError, TypeError):
+            total = len(rows)
 
     if format == OutputFormat.CSV:
         writer = csv.DictWriter(sys.stdout, fieldnames=["idno", "id", "title", "nation", "created"])
