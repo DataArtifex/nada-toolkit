@@ -15,6 +15,7 @@ from .harvester import (
     format_dataset_url,
     format_response_latency,
     format_version,
+    get_server_dir_name,
     resolve_server_token,
     save_server_token,
 )
@@ -55,6 +56,7 @@ __all__ = [
     "format_response_latency",
     "format_version",
     "get_iso2_code",
+    "get_server_dir_name",
     "matches_country",
     "resolve_server_token",
     "save_server_token",

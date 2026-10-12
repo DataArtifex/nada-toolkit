@@ -576,3 +576,20 @@ def test_fetch_active_studies_string_total(monkeypatch) -> None:
     cur, total = progress_calls[0]
     assert isinstance(total, int)
     assert total == 2
+
+
+def test_server_dir_name_excludes_port(tmp_path: Path) -> None:
+    from dartfx.nada.harvester import get_server_dir_name
+
+    assert get_server_dir_name("microdata.ubos.org:7070") == "microdata.ubos.org"
+    assert get_server_dir_name("https://microdata.ubos.org:7070/index.php") == "microdata.ubos.org"
+    assert get_server_dir_name("http://nada.test.org:8080") == "nada.test.org"
+    assert get_server_dir_name("microdata.worldbank.org") == "microdata.worldbank.org"
+
+    # ServerHarvester should keep host address with port for network,
+    # but cleanly exclude the port from the server directory name on disk
+    harvester = ServerHarvester("microdata.ubos.org:7070", tmp_path)
+    assert harvester.host == "microdata.ubos.org:7070"
+    assert harvester.dir_name == "microdata.ubos.org"
+    assert harvester.server_dir == tmp_path / "microdata.ubos.org"
+    assert ":" not in str(harvester.server_dir)

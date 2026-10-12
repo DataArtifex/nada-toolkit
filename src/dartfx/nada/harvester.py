@@ -104,6 +104,20 @@ def format_version(version: str | int | float | None) -> str:
     return ver_str
 
 
+def get_server_dir_name(host: str) -> str:
+    """Extract filesystem-safe directory name for a server by stripping protocol, path, and port.
+
+    Colons from ports (e.g. 'microdata.ubos.org:7070') are invalid in directory names on Windows
+    and NTFS/FAT/exFAT filesystems. Stripping the port yields 'microdata.ubos.org'.
+    """
+    clean = host.replace("https://", "").replace("http://", "").strip("/")
+    if "/" in clean:
+        clean = clean.split("/", 1)[0]
+    if ":" in clean:
+        clean = clean.split(":", 1)[0]
+    return clean
+
+
 def get_dataset_metadata_path(server_dir: Path, pid: str, ext: str = ".ddi.xml") -> tuple[Path, str]:
     """Get study directory and metadata file path inside a dedicated metadata/ folder.
     Returns (full_file_path, relative_path_str).
@@ -207,14 +221,16 @@ def resolve_server_token(
 
     for d in search_dirs:
         if d:
-            stf = Path(d) / clean_host / ".api_token"
-            if stf.exists():
-                try:
-                    t = stf.read_text("utf-8").strip()
-                    if t:
-                        return t
-                except Exception:
-                    pass
+            dir_name = get_server_dir_name(clean_host)
+            for s_name in (dir_name, clean_host):
+                stf = Path(d) / s_name / ".api_token"
+                if stf.exists():
+                    try:
+                        t = stf.read_text("utf-8").strip()
+                        if t:
+                            return t
+                    except Exception:
+                        pass
 
     # 2. Check central .nada_tokens.json / .tokens.json
     for d in search_dirs:
@@ -277,7 +293,7 @@ def save_server_token(host: str, token: str, repo_root: Path | None = None) -> N
 
     # 2. Save to server-specific directory (.api_token) if server_dir exists
     if repo_root:
-        server_dir = repo_root / clean_host
+        server_dir = repo_root / get_server_dir_name(clean_host)
         if server_dir.exists():
             token_file = server_dir / ".api_token"
             try:
@@ -594,8 +610,11 @@ def analyze_harvest_errors(
             continue
 
         srv = data.get("server") or mfile.parent.name
-        if clean_server and srv.lower() != clean_server.lower():
-            continue
+        if clean_server:
+            clean_srv = get_server_dir_name(srv)
+            clean_target = get_server_dir_name(clean_server)
+            if srv.lower() != clean_server.lower() and clean_srv.lower() != clean_target.lower():
+                continue
 
         errors_map = data.get("errors", {})
         for rec_key, err_info in errors_map.items():
@@ -1013,7 +1032,7 @@ def fetch_server_stats(
     headers = get_request_headers(host=clean_host, api_token=api_token, repo_root=repo_root)
 
     target_repo = repo_root or Path.cwd() / ".cache"
-    cache_file = target_repo / clean_host / ".stats_cache.json"
+    cache_file = target_repo / get_server_dir_name(clean_host) / ".stats_cache.json"
 
     if cache_file.exists() and not refresh_cache:
         try:
@@ -1500,7 +1519,17 @@ class ServerHarvester:
         self.host = host.replace("https://", "").replace("http://", "").strip("/")
         if "/" in self.host:
             self.host = self.host.split("/", 1)[0]
-        self.server_dir = repo_root / self.host
+        self.dir_name = get_server_dir_name(self.host)
+        # Migrate existing directory with raw colon port name if present
+        if ":" in self.host:
+            raw_dir = repo_root / self.host
+            clean_dir = repo_root / self.dir_name
+            if raw_dir.exists() and not clean_dir.exists():
+                try:
+                    raw_dir.rename(clean_dir)
+                except Exception:
+                    pass
+        self.server_dir = repo_root / self.dir_name
         self.manifest_file = self.server_dir / ".manifest.json"
         self.manifest = self._load_manifest()
 
