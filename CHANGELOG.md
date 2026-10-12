@@ -14,7 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Stabilized download progress bar layout by anchoring server name on the left, fixing bar/count/timer widths, and placing the active filename on the right-hand side to eliminate visual shifting.
   - Fixed harvest timer display by resetting progress state upon transition from catalog discovery to study synchronization and using `TimeElapsedColumn` for active stopwatch timing.
   - Cumulative catalog cache merging and partial-cache expansion handling, ensuring higher `--limit` requests query live servers while retaining previously cached studies.
-  - Comprehensive harvest error persistence in `.manifest.json` ensuring both transient (recoverable) and permanent failures are captured, queryable via `dartfx-nada errors`, and automatically retried on subsequent runs.
+  - Comprehensive harvest error persistence in `.manifest.json` ensuring both transient (recoverable) and permanent failures are captured, queryable via `dartfx-nada errors`, and retried on subsequent runs using `--retry` / `--retry-errors`.
+  - Added `--retry` / `--retry-errors` CLI option to `dartfx-nada harvest` to force re-attempting studies recorded with previous errors.
+  - Server directory names safely exclude port numbers (e.g. `microdata.ubos.org` instead of `microdata.ubos.org:7070`) preventing invalid path characters on Windows and NTFS/FAT filesystems.
+  - Automatic fallback for survey identifiers (`idno`) containing forward slashes (`/`): Resolves numeric study IDs and queries `/index.php/metadata/export/{id}/ddi` to bypass CodeIgniter URL routing limitations where slashes break standard REST routes.
   - Robust parsing of string-formatted total study counts returned by some NADA server APIs (e.g. instances like `microdata.ubos.org:7070`), preventing Rich progress bar crashes and infinite search pagination loops.
 - **Expanded Metadata Standards**:
   - Added support for MLCommons Croissant (`croissant`) and Google Dataset Search Schema.org (`schema` / `.schema.jsonld`) in `dartfx-nada study` and metadata harvester subsystem (`--formats schema`).

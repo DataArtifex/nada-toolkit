@@ -1275,9 +1275,22 @@ def fetch_active_studies(
     if target_idno:
         # Directly request target study
         clean_idno = target_idno.strip()
+        study_numeric_id = clean_idno
+        try:
+            search_url = f"{base_url}/index.php/api/catalog/search?sk={urllib.parse.quote(clean_idno)}"
+            r_search = requests.get(search_url, headers=headers, timeout=15)
+            if r_search.status_code == 200:
+                rows = r_search.json().get("result", {}).get("rows", [])
+                for row in rows:
+                    if row.get("idno") == clean_idno and row.get("id"):
+                        study_numeric_id = str(row.get("id"))
+                        break
+        except Exception:
+            pass
+
         active_studies[clean_idno] = {
             "idno": clean_idno,
-            "id": clean_idno,
+            "id": study_numeric_id,
             "title": clean_idno,
             "changed": None,
         }
@@ -1503,12 +1516,63 @@ def fetch_study_record(
         r = requests.get(url, headers=headers, timeout=25)
         if r.status_code == 200:
             content = r.content
-            if content and len(content.strip()) > 0:
+            if content and len(content.strip()) > 0 and not content.strip().startswith(b'{"status":"failed"'):
                 return content, ext, None
-            return None, ext, "Empty metadata response from server (0 bytes)"
-        err_msg = _extract_http_error_reason(r)
+            if not content or len(content.strip()) == 0:
+                err_msg = "Empty metadata response from server (0 bytes)"
+            else:
+                err_msg = _extract_http_error_reason(r)
+        else:
+            err_msg = _extract_http_error_reason(r)
+
+        # Fallback to NADA metadata export endpoint if study_id is available
+        # (Crucial when IDNO contains slashes or special characters that break CodeIgniter REST URL routing)
+        if study_id:
+            fallback_url = None
+            if fmt in ("ddi", "xml", "ddi-c"):
+                fallback_url = f"{base_url}/index.php/metadata/export/{study_id}/ddi"
+            elif fmt in ("json", "metadata"):
+                fallback_url = f"{base_url}/index.php/metadata/export/{study_id}/json"
+
+            if fallback_url:
+                if verbose:
+                    console.print(f"[dim]  [API] GET (fallback) {fallback_url}[/dim]")
+                file_logger.log(f"[API] GET (fallback) {fallback_url}")
+                try:
+                    r_fb = requests.get(fallback_url, headers=headers, timeout=25)
+                    if (
+                        r_fb.status_code == 200
+                        and r_fb.content
+                        and len(r_fb.content.strip()) > 0
+                        and r_fb.text.strip() != "false"
+                        and not r_fb.text.strip().startswith('{"status":"failed"')
+                    ):
+                        return r_fb.content, ext, None
+                except Exception:
+                    pass
+
         return None, ext, err_msg
     except Exception as e:
+        if study_id:
+            fallback_url = None
+            if fmt in ("ddi", "xml", "ddi-c"):
+                fallback_url = f"{base_url}/index.php/metadata/export/{study_id}/ddi"
+            elif fmt in ("json", "metadata"):
+                fallback_url = f"{base_url}/index.php/metadata/export/{study_id}/json"
+
+            if fallback_url:
+                try:
+                    r_fb = requests.get(fallback_url, headers=headers, timeout=25)
+                    if (
+                        r_fb.status_code == 200
+                        and r_fb.content
+                        and len(r_fb.content.strip()) > 0
+                        and r_fb.text.strip() != "false"
+                        and not r_fb.text.strip().startswith('{"status":"failed"')
+                    ):
+                        return r_fb.content, ext, None
+                except Exception:
+                    pass
         return None, ext, str(e)
 
 
@@ -1667,7 +1731,7 @@ class ServerHarvester:
             # Check non-recoverable error in manifest
             with manifest_lock:
                 manifest_errors = self.manifest.get("errors", {})
-                if rec_key in manifest_errors and not retry_errors:
+                if rec_key in manifest_errors and not retry_errors and not target_idno:
                     cached_err_entry = manifest_errors[rec_key]
                     cached_err = cached_err_entry.get("reason", "Non-recoverable error")
                     # Only skip if the error is non-recoverable/permanent; transient errors are auto-retried
@@ -1857,6 +1921,14 @@ def harvest(
             help="Force catalog cache refresh from server.",
         ),
     ] = False,
+    retry_errors: Annotated[
+        bool,
+        typer.Option(
+            "--retry-errors",
+            "--retry",
+            help="Retry downloading studies that previously encountered errors.",
+        ),
+    ] = False,
     workers: Annotated[
         int,
         typer.Option(
@@ -1974,6 +2046,7 @@ def harvest(
                 verbose=verbose,
                 target_idno=study_id,
                 refresh_catalog=refresh,
+                retry_errors=retry_errors,
                 api_token=api_token,
                 progress_callback=update_progress,
                 catalog_progress_callback=update_cat,

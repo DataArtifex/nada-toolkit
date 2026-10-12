@@ -933,15 +933,29 @@ class NadaServer(BaseModel):
         params = {"id_format": id_format} if id_format else None
         return self.get_request(f"catalog/{idno}", params=params)
 
-    def get_study_ddi(self, idno: str, id_format: str | None = None) -> Any:
+    def get_study_ddi(self, idno: str, id_format: str | None = None, numeric_id: int | str | None = None) -> Any:
         """Download study DDI CodeBook XML."""
+        if numeric_id and ("/" in idno or "%2F" in idno):
+            return self.get_request(f"index.php/metadata/export/{numeric_id}/ddi", return_type="text")
         params = {"id_format": id_format} if id_format else None
-        return self.get_request(f"catalog/ddi/{idno}", params=params, return_type="text")
+        try:
+            return self.get_request(f"catalog/ddi/{idno}", params=params, return_type="text")
+        except Exception:
+            if numeric_id:
+                return self.get_request(f"index.php/metadata/export/{numeric_id}/ddi", return_type="text")
+            raise
 
-    def get_study_json(self, idno: str, id_format: str | None = None) -> Any:
+    def get_study_json(self, idno: str, id_format: str | None = None, numeric_id: int | str | None = None) -> Any:
         """Download study metadata as raw JSON."""
+        if numeric_id and ("/" in idno or "%2F" in idno):
+            return self.get_request(f"index.php/metadata/export/{numeric_id}/json")
         params = {"id_format": id_format} if id_format else None
-        return self.get_request(f"catalog/json/{idno}", params=params)
+        try:
+            return self.get_request(f"catalog/json/{idno}", params=params)
+        except Exception:
+            if numeric_id:
+                return self.get_request(f"index.php/metadata/export/{numeric_id}/json")
+            raise
 
     def get_study_resources(self, idno: str, id_format: str | None = None) -> Any:
         """Download study external resources and questionnaires as JSON."""

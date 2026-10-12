@@ -32,6 +32,8 @@ def test_sanitize_pid() -> None:
     assert sanitize_pid("MWI_2026_IHS") == "MWI_2026_IHS"
     assert sanitize_pid("MWI/2026/IHS") == "MWI_2026_IHS"
     assert sanitize_pid("TON_ 2015_HIES") == "TON__2015_HIES"
+    assert sanitize_pid("UBOS-BR-2006/07-v01") == "UBOS-BR-2006_07-v01"
+    assert sanitize_pid("UGA-UBOS-UCA-2008/09") == "UGA-UBOS-UCA-2008_09"
 
 
 def test_format_version() -> None:
@@ -57,6 +59,11 @@ def test_get_dataset_metadata_path(tmp_path: Path) -> None:
     meta_path, rel_path = get_dataset_metadata_path(server_dir, "WB_2026_01", ".ddi.xml")
     assert rel_path == "WB_2026_01/metadata/ddi.xml"
     assert meta_path == server_dir / "WB_2026_01" / "metadata" / "ddi.xml"
+
+    # Identifiers containing slashes
+    meta_path_slash, rel_path_slash = get_dataset_metadata_path(server_dir, "UBOS-BR-2006/07-v01", ".ddi.xml")
+    assert rel_path_slash == "UBOS-BR-2006_07-v01/metadata/ddi.xml"
+    assert meta_path_slash == server_dir / "UBOS-BR-2006_07-v01" / "metadata" / "ddi.xml"
 
 
 def test_is_non_recoverable_error() -> None:
@@ -394,6 +401,45 @@ def test_fetch_study_record_schema(monkeypatch) -> None:
     assert data["name"] == "Test Survey Dataset"
 
 
+def test_fetch_study_record_slash_idno_fallback(monkeypatch) -> None:
+    from dartfx.nada.harvester import fetch_study_record
+
+    calls = []
+
+    def mock_get(url, **_kwargs):
+        calls.append(url)
+        resp = MagicMock()
+        if "api/catalog/ddi" in url:
+            # CodeIgniter route fails when IDNO has slashes
+            resp.status_code = 400
+            resp.text = '{"status":"failed","errors":"IDNO-NOT-FOUND"}'
+            resp.content = resp.text.encode("utf-8")
+        elif "metadata/export/5/ddi" in url:
+            # Export fallback succeeds
+            resp.status_code = 200
+            resp.text = '<?xml version="1.0"?><codeBook ID="UBOS-BR-2006/07-v01"></codeBook>'
+            resp.content = resp.text.encode("utf-8")
+        else:
+            resp.status_code = 404
+            resp.text = "Not found"
+            resp.content = b""
+        return resp
+
+    monkeypatch.setattr("requests.get", mock_get)
+
+    content, ext, err = fetch_study_record(
+        "microdata.ubos.org",
+        "UBOS-BR-2006/07-v01",
+        metadata_format="ddi",
+        study_id="5",
+    )
+    assert err is None
+    assert ext == ".ddi.xml"
+    assert content is not None
+    assert b"UBOS-BR-2006/07-v01" in content
+    assert any("metadata/export/5/ddi" in c for c in calls)
+
+
 def test_fetch_active_studies_cache_expansion_with_higher_limit(tmp_path: Path, monkeypatch) -> None:
     calls = []
 
@@ -538,6 +584,12 @@ def test_harvester_records_recoverable_and_non_recoverable_errors(monkeypatch, t
     assert "ERR-RECOVERABLE::ddi" in res_2["added"]
     assert "ERR-RECOVERABLE::ddi" not in harvester.manifest["errors"]
     assert "ERR-PERMANENT::ddi" in harvester.manifest["errors"]
+    assert fetch_attempts["ERR-PERMANENT"] == 1
+
+    # Third sync with retry_errors=True forces retrying cached permanent errors
+    res_3 = harvester.sync(metadata_formats="ddi", retry_errors=True)
+    assert fetch_attempts["ERR-PERMANENT"] == 2
+    assert len(res_3["errors"]) == 1
 
 
 def test_fetch_active_studies_string_total(monkeypatch) -> None:
