@@ -84,3 +84,6 @@ jobs:
 
       - name: Format check (ruff)
         run: uv run ruff format --check src tests
+
+      - name: Verify registry markdown in sync (data/servers.md)
+        run: uv run python -m dartfx.nada.markdown --check

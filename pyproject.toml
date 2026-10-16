@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
   "pydantic>=2.10.0",
   "python-dotenv>=1.0.0",
+  "pyyaml>=6.0.0",
   "requests>=2.32.0",
   "requests-cache>=1.0.0",
   "typer>=0.24.0",
@@ -42,6 +43,11 @@ exclude = ["/.github", "/docs"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/dartfx"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"data/servers.yaml" = "dartfx/nada/data/servers.yaml"
+"data/servers.md" = "dartfx/nada/data/servers.md"
+
+
 [tool.hatch.version]
 path = "src/dartfx/nada/__about__.py"
 
@@ -55,6 +61,7 @@ dev = [
   "ruff>=0.3.0",
   "pre-commit>=4.0.0",
   "types-requests>=2.32.4.20260107",
+  "types-pyyaml>=6.0.0",
 ]
 docs = [
   "sphinx>=8.0.0",

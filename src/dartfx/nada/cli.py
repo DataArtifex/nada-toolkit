@@ -708,5 +708,39 @@ def errors(
     )
 
 
+@app.command(name="registry-md", help="Generate or check sidecar data/servers.md from data/servers.yaml.")
+def registry_md_command(
+    yaml_file: Annotated[
+        str | None,
+        typer.Option("--yaml", "-y", help="Path to servers.yaml (default: auto-detected data/servers.yaml)"),
+    ] = None,
+    output_file: Annotated[
+        str | None,
+        typer.Option("--output", "-o", help="Path to servers.md (default: sidecar data/servers.md)"),
+    ] = None,
+    check: Annotated[
+        bool,
+        typer.Option("--check", help="Check whether servers.md is in sync with servers.yaml without modifying"),
+    ] = False,
+) -> None:
+    """Generate or verify the sidecar Markdown version of the servers registry."""
+    from dartfx.nada.markdown import check_servers_markdown, generate_servers_markdown
+
+    if check:
+        in_sync = check_servers_markdown(yaml_file, output_file)
+        if in_sync:
+            console.print("[green]✓ data/servers.md is up to date.[/green]")
+            return
+        console.print("[red]✗ Drift detected: data/servers.md is out of sync with data/servers.yaml.[/red]")
+        console.print("Run [bold cyan]dartfx-nada registry-md[/bold cyan] to update the sidecar markdown.")
+        raise typer.Exit(code=1)
+
+    dest_md, content = generate_servers_markdown(yaml_file, output_file)
+    console.print(
+        f"[green]✓ Successfully generated sidecar registry markdown:[/green] "
+        f"[cyan]{dest_md}[/cyan] ({len(content)} bytes)"
+    )
+
+
 if __name__ == "__main__":
     app()

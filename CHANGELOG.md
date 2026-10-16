@@ -23,8 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added support for MLCommons Croissant (`croissant`) and Google Dataset Search Schema.org (`schema` / `.schema.jsonld`) in `dartfx-nada study` and metadata harvester subsystem (`--formats schema`).
   - New export methods on `NadaServer`: `get_study_croissant()` and `get_study_schema()`.
 - **Server Discovery & Registry Improvements**:
+  - Migrated NADA server list from remote Google Sheet to a community-maintained `data/servers.yaml` file in `/data` for accessibility by non-developers on GitHub, packaged via wheel force-includes.
+  - Simplified YAML schema to use only `country_code`, dynamically deriving country names via ISO-2 crosswalks while omitting volatile `version` and `status` fields in favor of live probing (`dartfx-nada stats`).
+  - Added structured `custodian` (name, url, ROR URI), `geocoverage` (level, description, GeoNames URI), and `domains` thematic coverage tags.
+  - Synchronized server catalog endpoints with the AGRIS NADA monitoring dashboard (`https://monitor.agris-editor.org/index.php`), adding 6 new national repositories (Cabo Verde, Gambia, Ghana Statistical Service, Guinea, Madagascar, Zambia) and updating modern URLs for Benin, Burkina Faso, Côte d'Ivoire, Liberia, Mali, Nepal, Nigeria, Senegal, Sierra Leone, Tanzania, and Togo.
   - Added `list` command as the preferred command for discovering NADA servers, with `installations` retained as a backwards-compatible alias.
   - Active clickable hyperlinks and CSV/JSON output formatting in `dartfx-nada list`.
+  - Added sidecar Markdown registry generator (`data/servers.md`) and CLI command `dartfx-nada registry-md` (`--check`).
+  - Integrated sidecar markdown generation into `.pre-commit-config.yaml` and `.github/workflows/test.yml` CI verification.
 - **Diagnostic & Resilience Enhancements**:
   - Abbreviated status error badges (e.g. `SSL Hostname Mismatch`, `Connection Failure`, `Timeout (10s)`) replacing verbose connection pool stack traces in `dartfx-nada stats`.
   - Domain parking / domain-for-sale detection and strict JSON/CSV payload validation in server stats probing.

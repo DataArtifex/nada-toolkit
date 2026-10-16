@@ -69,7 +69,7 @@ The package installs the `dartfx-nada` CLI tool:
 
 ### 1. Server Discovery & Installations
 
-List known worldwide NADA servers (`list` is the preferred command, with `installations` as an alias):
+List known worldwide NADA servers (`list` is the preferred command, with `installations` as an alias). The registry is maintained in [data/servers.yaml](data/servers.yaml) and can be updated directly by the community:
 
 ```bash
 # List all known installations
@@ -280,6 +280,83 @@ repository/
 │   │       ├── croissant.jsonld # MLCommons Croissant JSON-LD
 │   │       └── schema.jsonld    # Google Dataset Search Schema.org JSON-LD
 ```
+
+---
+
+## Contributing to the NADA Repositories Registry
+
+The worldwide registry of NADA installations is stored in [`data/servers.yaml`](data/servers.yaml), sorted alphabetically by `hostname`. Because `dartfx-nada` automatically fetches this file directly from the GitHub repository over HTTPS when running `dartfx-nada list`, additions and updates become available to all users immediately upon being merged into `main`!
+
+There are two easy ways to add or update a NADA server:
+
+### Option 1: Edit `data/servers.yaml` via GitHub Pull Request (Recommended)
+
+Non-developers can edit the file directly in their browser:
+1. Navigate to [`data/servers.yaml`](https://github.com/DataArtifex/nada-toolkit/blob/main/data/servers.yaml) on GitHub.
+2. Click the pencil icon (✏️ **Edit this file**) in the top-right corner (GitHub will automatically create a fork for you).
+3. Insert or update the server entry keeping entries **sorted alphabetically by `hostname`**.
+4. Click **Propose changes** and submit a **Pull Request**.
+
+### Option 2: Open a GitHub Issue
+
+If you prefer not to edit YAML directly, simply [open a GitHub Issue](https://github.com/DataArtifex/nada-toolkit/issues/new) titled `Add NADA Server: <Organization Name>` and provide:
+- **Server URL**: (e.g., `https://microdata.example.org`)
+- **Organization Name**: (e.g., `National Statistical Office`)
+- **Country**: (e.g., `Senegal` / `SN`)
+- **Custodian Homepage & ROR URI** (optional)
+- **Topical / Domain Coverage** (optional, e.g. `census`, `agriculture`, `official-statistics`)
+
+### Registry YAML Schema
+
+Each entry in [`data/servers.yaml`](data/servers.yaml) adheres to the following specification:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | `string` | **Yes** | Human-readable name of the catalog or repository. |
+| `hostname` | `string` | **Yes** | Server hostname domain (e.g. `microdata.worldbank.org`). |
+| `url` | `string` | **Yes** | Full web catalog endpoint URL. |
+| `country_code` | `string` | Optional | Two-letter ISO 3166-1 alpha-2 code (e.g. `SN`, `UG`, `US`), or null for global/international agencies. |
+| `custodian` | `object` | Optional | Custodian organization details (`name`, `url`, `ror`). |
+| `geocoverage` | `object` | Optional | Scope (`level`: `global` \| `regional` \| `national` \| `subnational` \| `city` \| `other`), textual `description`, and `geonames` list of URIs. |
+| `domains` | `list` | Optional | List of thematic tags (e.g. `official-statistics`, `census`, `socio-economic`, `agriculture`). |
+
+#### Example Entry
+
+```yaml
+- name: Agence Nationale de la Statistique et de la Démographie (ANSD)
+  hostname: anads.ansd.sn
+  url: https://anads.ansd.sn
+  country_code: SN
+  custodian:
+    name: Agence Nationale de la Statistique et de la Démographie (ANSD)
+    url: https://www.ansd.sn/
+    ror: https://ror.org/033jfe446
+  geocoverage:
+    level: national
+    description: Senegal
+    geonames:
+      - https://www.geonames.org/2245662/
+  domains:
+    - official-statistics
+    - socio-economic
+    - census
+```
+
+### Sidecar Markdown Generation & Automated CI/Commit Synchronization
+
+A human-readable Markdown directory is automatically maintained alongside the YAML at [`data/servers.md`](data/servers.md).
+
+- **Regenerate manually or via CLI**:
+  ```bash
+  # Regenerate data/servers.md from data/servers.yaml
+  dartfx-nada registry-md
+
+  # Or verify that data/servers.md is in sync (exits with code 1 if drift detected)
+  dartfx-nada registry-md --check
+  ```
+- **Automated on Git Commit (`pre-commit`)**: The project's `.pre-commit-config.yaml` includes a hook that triggers on changes to `data/servers.yaml` to ensure `data/servers.md` is updated before committing.
+- **Automated in CI / Push / PR**: GitHub Actions runs `python -m dartfx.nada.markdown --check` during the lint job, ensuring pull requests remain in sync with the YAML source of truth.
+
 
 ---
 

@@ -1,6 +1,7 @@
 import json
 import re
 import sys
+from pathlib import Path
 
 from typer.testing import CliRunner
 
@@ -9,6 +10,7 @@ from dartfx.nada.nada import (
     ServerInstallation,
     fetch_nada_installations,
     get_iso2_code,
+    load_bundled_servers_yaml,
     matches_country,
 )
 
@@ -121,3 +123,126 @@ def test_cli_version_flag() -> None:
     result_short = runner.invoke(app, ["-V"])
     assert result_short.exit_code == 0
     assert "0.4.0" in result_short.stdout
+
+
+def test_load_bundled_servers_yaml() -> None:
+    servers = load_bundled_servers_yaml()
+    assert len(servers) >= 60
+    wb = next((s for s in servers if "worldbank" in s.get("hostname", "")), None)
+    assert wb is not None
+    assert "World Bank" in wb["name"]
+    assert wb.get("geocoverage", {}).get("level") == "global"
+
+    sn = next((s for s in servers if "ansd.sn" in s.get("hostname", "")), None)
+    assert sn is not None
+    assert sn["country_code"] == "SN"
+    assert sn.get("geocoverage", {}).get("level") == "national"
+
+
+def test_fetch_nada_installations_local_yaml(tmp_path: Path) -> None:
+    custom_yaml = tmp_path / "custom_servers.yaml"
+    custom_yaml.write_text(
+        """
+- name: Custom Test Archive
+  hostname: nada.custom.org
+  url: https://nada.custom.org
+  country: Testland
+  country_code: TL
+  version: 5
+  status: up
+""",
+        encoding="utf-8",
+    )
+    insts = fetch_nada_installations(urls=[str(custom_yaml)])
+    assert len(insts) == 1
+    assert insts[0].name == "Custom Test Archive"
+    assert insts[0].clean_hostname == "nada.custom.org"
+    assert insts[0].country_code == "TL"
+    assert insts[0].url == "https://nada.custom.org"
+
+
+def test_server_installation_url_and_scheme_normalization() -> None:
+    # URL provided instead of hostname
+    inst_http = ServerInstallation(
+        name="HTTP Test",
+        url="http://custom.nada.org/subpath",
+        country="Senegal",
+    )
+    assert inst_http.scheme == "http"
+    assert inst_http.clean_hostname == "custom.nada.org"
+    assert inst_http.url == "http://custom.nada.org"
+    assert inst_http.country_code == "SN"
+
+
+def test_server_installation_country_derivation_from_code() -> None:
+    # Only country_code provided
+    inst = ServerInstallation(
+        name="ANSD Senegal",
+        hostname="anads.ansd.sn",
+        country_code="SN",
+    )
+    assert inst.country == "Senegal"
+    assert inst.country_code == "SN"
+
+
+def test_server_installation_custodian_and_geocoverage() -> None:
+    inst = ServerInstallation(
+        name="World Bank Microdata Library",
+        hostname="microdata.worldbank.org",
+        country_code="US",
+        custodian={
+            "name": "World Bank Group",
+            "home_page": "https://www.worldbank.org",
+            "ror_uri": "https://ror.org/01pnzbv35",
+        },
+        geocoverage={
+            "level": "global",
+            "description": "Worldwide",
+            "geonames": ["https://www.geonames.org/6255147/"],
+        },
+        domains=["socio-economic", "living-standards"],
+    )
+    assert inst.custodian is not None
+    assert inst.custodian.name == "World Bank Group"
+    assert inst.custodian.url == "https://www.worldbank.org"
+    assert inst.custodian.ror == "https://ror.org/01pnzbv35"
+    assert inst.geocoverage is not None
+    assert inst.geocoverage.level == "global"
+    assert inst.geocoverage.geonames == ["https://www.geonames.org/6255147/"]
+    assert inst.geocoverage.geonames_uri == "https://www.geonames.org/6255147/"
+    assert inst.domains == ["socio-economic", "living-standards"]
+
+    # Test single geonames_uri string backwards-compatibility input
+    inst_compat = ServerInstallation(
+        name="Test",
+        hostname="test.org",
+        geocoverage={"geonames_uri": "https://www.geonames.org/123/"},
+    )
+    assert inst_compat.geocoverage is not None
+    assert inst_compat.geocoverage.geonames == ["https://www.geonames.org/123/"]
+    assert inst_compat.geocoverage.geonames_uri == "https://www.geonames.org/123/"
+
+
+def test_agris_monitor_server_additions() -> None:
+    """Verify that servers identified on the AGRIS monitor are present in bundled servers.yaml and sorted."""
+    servers = load_bundled_servers_yaml()
+    country_codes = {s.get("country_code") for s in servers}
+    # Check that new countries from the AGRIS monitor are present
+    for code in ["CV", "GM", "GN", "MG", "ZM", "BJ", "BF", "CI", "ML", "NP", "NG", "SL", "TZ"]:
+        assert code in country_codes, f"Expected {code} in servers.yaml"
+
+    # Verify Cabo Verde, Gambia, and Zambia entries
+    cv_server = next(s for s in servers if s.get("country_code") == "CV")
+    assert "ine.cv" in cv_server["hostname"]
+    assert cv_server["custodian"]["name"] == "Instituto Nacional de Estatística (INE)"
+    assert isinstance(cv_server["geocoverage"]["geonames"], list)
+
+    gm_server = next(s for s in servers if s.get("country_code") == "GM")
+    assert "gbosdata.org" in gm_server["hostname"]
+
+    zm_server = next(s for s in servers if s.get("country_code") == "ZM")
+    assert "zamstats.gov.zm" in zm_server["hostname"]
+
+    # Verify that servers list is sorted by hostname
+    hostnames = [(s.get("hostname") or "").lower() for s in servers if s.get("hostname")]
+    assert hostnames == sorted(hostnames), "Servers should be sorted alphabetically by hostname"

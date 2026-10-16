@@ -1,0 +1,1136 @@
+# NADA Repositories Registry
+# Community-maintained catalog of National Data Archive (NADA) installations worldwide.
+#
+# Schema:
+#   name: Human-readable name of the repository / archive
+#   hostname: Server domain hostname
+#   url: Full web catalog endpoint URL
+#   country_code: Two-letter ISO 3166-1 alpha-2 country code (or null for international/regional)
+#   custodian: (Optional) Organization responsible for the archive
+#     name: Organization name
+#     url: Organization home page URL
+#     ror: Research Organization Registry (ROR) URI (e.g. https://ror.org/...)
+#   geocoverage: (Optional) Geographic coverage scope
+#     level: Coverage level (global | regional | national | subnational | city | other)
+#     description: Description of the coverage region or country
+#     geonames: List of GeoNames URIs (e.g. https://www.geonames.org/...)
+#   domains: (Optional) List of domain / topical coverage areas (e.g. official-statistics, health)
+
+- name: Direction Général de la Statistique et la Comptabilité Nationale
+  hostname: 160.242.193.218
+  url: http://160.242.193.218/nada
+  country_code: TG
+  custodian:
+    name: Institut National de la Statistique et des Etudes Economiques et Démographiques
+      (INSEED)
+    url: https://inseed.tg/
+  geocoverage:
+    level: national
+    description: Togo
+    geonames:
+    - https://www.geonames.org/2363686/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Agence Nationale de la Statistique et de la Démographie (ANSD)
+  hostname: anads.ansd.sn
+  url: https://anads.ansd.sn
+  country_code: SN
+  custodian:
+    name: Agence Nationale de la Statistique et de la Démographie (ANSD)
+    url: https://www.ansd.sn/
+    ror: https://ror.org/033jfe446
+  geocoverage:
+    level: national
+    description: Senegal
+    geonames:
+    - https://www.geonames.org/2245662/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Instituto Nacional de Estadística (INE)
+  hostname: anda.ine.gob.bo
+  url: https://anda.ine.gob.bo
+  country_code: BO
+  geocoverage:
+    level: national
+    description: Bolivia
+    geonames:
+    - https://www.geonames.org/3923057/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Instituto Nacional de Estadistica y Censos (INEC)
+  hostname: anda.inec.gob.ec
+  url: https://anda.inec.gob.ec/anda
+  country_code: EC
+  geocoverage:
+    level: national
+    description: Ecuador
+    geonames:
+    - https://www.geonames.org/3658394/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Oficina Nacional de Estadistica (ONE)
+  hostname: anda.one.gob.do
+  url: https://anda.one.gob.do
+  country_code: DO
+  geocoverage:
+    level: national
+    description: Dominican Republic
+    geonames:
+    - https://www.geonames.org/3508796/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Instituto Nacional de Estatística (INE)
+  hostname: andine.ine.gov.ao
+  url: https://andine.ine.gov.ao/nada
+  country_code: AO
+  geocoverage:
+    level: national
+    description: Angola
+    geonames:
+    - https://www.geonames.org/3351879/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Multi-Country Studies Data Archive (WHO)
+  hostname: apps.who.int
+  url: https://apps.who.int/healthinfo/systems/surveydata
+  country_code: null
+  custodian:
+    name: World Health Organization (WHO)
+    url: https://www.who.int
+    ror: https://ror.org/01f809v54
+  geocoverage:
+    level: global
+    description: Worldwide
+    geonames: []
+  domains:
+  - health
+  - epidemiology
+  - public-health
+- name: Statistics Botswana
+  hostname: botswana.microdatahub.com
+  url: http://botswana.microdatahub.com
+  country_code: BW
+  geocoverage:
+    level: national
+    description: Botswana
+    geonames:
+    - https://www.geonames.org/933860/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: International Household Survey Network (IHSN)
+  hostname: catalog.ihsn.org
+  url: https://catalog.ihsn.org
+  country_code: null
+  custodian:
+    name: International Household Survey Network (IHSN)
+    url: https://www.ihsn.org
+  geocoverage:
+    level: global
+    description: Worldwide
+    geonames: []
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Census Digital Library
+  hostname: censusindia.gov.in
+  url: https://censusindia.gov.in/nada
+  country_code: IN
+  custodian:
+    name: Office of the Registrar General & Census Commissioner, India
+    url: https://censusindia.gov.in/
+  geocoverage:
+    level: national
+    description: India
+    geonames:
+    - https://www.geonames.org/1269750/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Central Data Catalog
+  hostname: censusinfo.capmas.gov.eg
+  url: https://censusinfo.capmas.gov.eg/metadata-en-v4.2
+  country_code: EG
+  custodian:
+    name: Central Agency for Public Mobilization and Statistics (CAPMAS)
+    url: https://capmas.gov.eg/
+  geocoverage:
+    level: national
+    description: Egypt
+    geonames:
+    - https://www.geonames.org/357994/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: IFAKARA Health Institute
+  hostname: data.ihi.or.tz
+  url: https://data.ihi.or.tz
+  country_code: TZ
+  geocoverage:
+    level: national
+    description: Tanzania
+    geonames:
+    - https://www.geonames.org/149590/
+  domains:
+  - health
+  - biomedical
+  - epidemiology
+- name: Institut national d'études démographiques (INED)
+  hostname: data.ined.fr
+  url: https://data.ined.fr
+  country_code: FR
+  custodian:
+    name: Institut National d'Études Démographiques (INED)
+    url: https://www.ined.fr
+    ror: https://ror.org/00yjwf890
+  geocoverage:
+    level: national
+    description: France
+    geonames:
+    - https://www.geonames.org/3017382/
+  domains:
+  - demography
+  - population-studies
+  - fertility-mortality
+- name: Swiss national science foundation (FORS)
+  hostname: devisu.forscenter.ch
+  url: https://devisu.forscenter.ch
+  country_code: CH
+  custodian:
+    name: FORS - Swiss Centre of Expertise in the Social Sciences
+    url: https://forscenter.ch
+    ror: https://ror.org/02v672m69
+  geocoverage:
+    level: national
+    description: Switzerland
+    geonames:
+    - https://www.geonames.org/2658434/
+  domains:
+  - social-sciences
+  - politics
+  - surveys
+- name: INEI Microdatos Peru
+  hostname: iinei.inei.gob.pe
+  url: https://iinei.inei.gob.pe/microdatos
+  country_code: PE
+  custodian:
+    name: Instituto Nacional de Estadística e Informática
+    url: https://www.inei.gob.pe
+  geocoverage:
+    level: national
+    description: Peru
+    geonames:
+    - https://www.geonames.org/3932488/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: INDEPTH Network
+  hostname: indepth-ishare.org
+  url: https://indepth-ishare.org
+  country_code: null
+  geocoverage:
+    level: regional
+    description: Africa
+    geonames:
+    - https://www.geonames.org/6255146/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Statistics South Africa (Stats SA)
+  hostname: interactive.statssa.gov.za
+  url: https://interactive.statssa.gov.za
+  country_code: ZA
+  custodian:
+    name: Statistics South Africa
+    url: https://www.statssa.gov.za
+  geocoverage:
+    level: national
+    description: South Africa
+    geonames:
+    - https://www.geonames.org/953987/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Millennium Challenge Corporation
+  hostname: mcc.icpsr.umich.edu
+  url: https://mcc.icpsr.umich.edu/evaluations/index.php/catalog
+  country_code: US
+  custodian:
+    name: Millennium Challenge Corporation (MCC)
+    url: https://www.mcc.gov
+    ror: https://ror.org/02y506660
+  geocoverage:
+    level: national
+    description: United States
+    geonames:
+    - https://www.geonames.org/6252001/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Statistical Committee of the Republic of Armenia
+  hostname: microdata.armstat.am
+  url: http://microdata.armstat.am
+  country_code: AM
+  geocoverage:
+    level: national
+    description: Armenia
+    geonames:
+    - https://www.geonames.org/174982/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Badan Pusat Statistik (BPS)
+  hostname: microdata.bps.go.id
+  url: https://microdata.bps.go.id/mikrodata
+  country_code: ID
+  geocoverage:
+    level: national
+    description: Indonesia
+    geonames:
+    - https://www.geonames.org/1643084/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Ethiopian Statistics Service
+  hostname: microdata.ess.gov.et
+  url: https://microdata.ess.gov.et
+  country_code: ET
+  custodian:
+    name: Ethiopian Statistics Service
+    url: https://www.ess.gov.et
+  geocoverage:
+    level: national
+    description: Ethiopia
+    geonames:
+    - https://www.geonames.org/337996/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Food and Agriculture Organization (FAO)
+  hostname: microdata.fao.org
+  url: https://microdata.fao.org
+  country_code: null
+  custodian:
+    name: Food and Agriculture Organization (FAO)
+    url: https://www.fao.org
+    ror: https://ror.org/05v5ktt08
+  geocoverage:
+    level: global
+    description: Worldwide
+    geonames: []
+  domains:
+  - agriculture
+  - food-security
+  - rural-development
+- name: Gambia Bureau of Statistics (GBoS)
+  hostname: microdata.gbosdata.org
+  url: https://microdata.gbosdata.org
+  country_code: GM
+  custodian:
+    name: Gambia Bureau of Statistics (GBoS)
+    url: https://gbosdata.org/
+    ror: https://ror.org/03g849594
+  geocoverage:
+    level: national
+    description: Gambia
+    geonames:
+    - https://www.geonames.org/2413451/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+  - agriculture
+- name: Ministry of Statistics and Programme Implementation (MOSPI)
+  hostname: microdata.gov.in
+  url: http://microdata.gov.in/nada43
+  country_code: IN
+  geocoverage:
+    level: national
+    description: India
+    geonames:
+    - https://www.geonames.org/1269750/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Institut National de la Statistique et de la Démographie (INSD)
+  hostname: microdata.insd.bf
+  url: https://microdata.insd.bf
+  country_code: BF
+  custodian:
+    name: Institut National de la Statistique et de la Démographie (INSD)
+    url: https://insd.bf/
+  geocoverage:
+    level: national
+    description: Burkina Faso
+    geonames:
+    - https://www.geonames.org/2361809/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Institut National de la Statistique (INS)
+  hostname: microdata.insguinee.org
+  url: https://microdata.insguinee.org
+  country_code: GN
+  custodian:
+    name: Institut National de la Statistique (INS)
+    url: https://insguinee.org/
+  geocoverage:
+    level: national
+    description: Guinea
+    geonames:
+    - https://www.geonames.org/2420477/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+  - demography
+- name: Institut National de la Statistique (INSTAT)
+  hostname: microdata.instat.ml
+  url: https://microdata.instat.ml
+  country_code: ML
+  custodian:
+    name: Institut National de la Statistique (INSTAT)
+    url: https://instat.ml/
+  geocoverage:
+    level: national
+    description: Mali
+    geonames:
+    - https://www.geonames.org/2453866/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Liberia Institute of Statistics & Geo-Information Services (LISGIS)
+  hostname: microdata.lisgislr.org
+  url: https://microdata.lisgislr.org
+  country_code: LR
+  custodian:
+    name: Liberia Institute of Statistics & Geo-Information Services (LISGIS)
+    url: https://lisgislr.org/
+  geocoverage:
+    level: national
+    description: Liberia
+    geonames:
+    - https://www.geonames.org/2275384/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: National Bureau of Statistics (NBS)
+  hostname: microdata.nbs.go.tz
+  url: https://microdata.nbs.go.tz
+  country_code: TZ
+  custodian:
+    name: National Bureau of Statistics (NBS)
+    url: https://nbs.go.tz/
+    ror: https://ror.org/05w6e0a44
+  geocoverage:
+    level: national
+    description: Tanzania
+    geonames:
+    - https://www.geonames.org/149590/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: National Bureau of Statistics (NBS)
+  hostname: microdata.nigerianstat.gov.ng
+  url: https://microdata.nigerianstat.gov.ng
+  country_code: NG
+  custodian:
+    name: National Bureau of Statistics (NBS)
+    url: https://nigerianstat.gov.ng/
+    ror: https://ror.org/032j5c935
+  geocoverage:
+    level: national
+    description: Nigeria
+    geonames:
+    - https://www.geonames.org/2328926/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: National Institute of Statistics (NIS)
+  hostname: microdata.nis.gov.kh
+  url: https://microdata.nis.gov.kh
+  country_code: KH
+  geocoverage:
+    level: national
+    description: Cambodia
+    geonames:
+    - https://www.geonames.org/1831722/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: National Statistics Office (NSO)
+  hostname: microdata.nsonepal.gov.np
+  url: https://microdata.nsonepal.gov.np
+  country_code: NP
+  custodian:
+    name: National Statistics Office (NSO)
+    url: https://nsonepal.gov.np/
+    ror: https://ror.org/00z2b7252
+  geocoverage:
+    level: national
+    description: Nepal
+    geonames:
+    - https://www.geonames.org/1282988/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Pacific Data Hub
+  hostname: microdata.pacificdata.org
+  url: https://microdata.pacificdata.org
+  country_code: VU
+  geocoverage:
+    level: national
+    description: Pacific Islands
+    geonames:
+    - https://www.geonames.org/2134431/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: National Institute of Statistics Rwanda (NISR)
+  hostname: microdata.statistics.gov.rw
+  url: http://microdata.statistics.gov.rw
+  country_code: RW
+  geocoverage:
+    level: national
+    description: Rwanda
+    geonames:
+    - https://www.geonames.org/49518/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Statistics Sierra Leone
+  hostname: microdata.statistics.sl
+  url: https://microdata.statistics.sl
+  country_code: SL
+  custodian:
+    name: Statistics Sierra Leone (Stats SL)
+    url: https://statistics.sl/
+    ror: https://ror.org/03g1tcf74
+  geocoverage:
+    level: national
+    description: Sierra Leone
+    geonames:
+    - https://www.geonames.org/2403846/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Ghana Statistical Service (GSS)
+  hostname: microdata.statsghana.gov.gh
+  url: https://microdata.statsghana.gov.gh
+  country_code: GH
+  custodian:
+    name: Ghana Statistical Service (GSS)
+    url: https://statsghana.gov.gh/
+    ror: https://ror.org/043t1q674
+  geocoverage:
+    level: national
+    description: Ghana
+    geonames:
+    - https://www.geonames.org/2302357/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+  - demography
+- name: Uganda Bureau of Statistics (UBoS)
+  hostname: microdata.ubos.org
+  url: https://microdata.ubos.org:7070
+  country_code: UG
+  geocoverage:
+    level: national
+    description: Uganda
+    geonames:
+    - https://www.geonames.org/226074/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: UNHCR Microdata Library
+  hostname: microdata.unhcr.org
+  url: https://microdata.unhcr.org
+  country_code: null
+  custodian:
+    name: United Nations High Commissioner for Refugees (UNHCR)
+    url: https://www.unhcr.org
+    ror: https://ror.org/03wep4v47
+  geocoverage:
+    level: global
+    description: Worldwide
+    geonames: []
+  domains:
+  - forced-displacement
+  - refugees
+  - humanitarian
+  - migration
+- name: The World Bank - Microdata Library
+  hostname: microdata.worldbank.org
+  url: https://microdata.worldbank.org
+  country_code: null
+  custodian:
+    name: World Bank Group
+    url: https://www.worldbank.org
+    ror: https://ror.org/01pnzbv35
+  geocoverage:
+    level: global
+    description: Worldwide
+    geonames: []
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: African Population and Health Research Center, Nairobi
+  hostname: microdataportal.aphrc.org
+  url: http://microdataportal.aphrc.org
+  country_code: KE
+  geocoverage:
+    level: national
+    description: Kenya
+    geonames:
+    - https://www.geonames.org/192950/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Instituto Nacional de Estatistica (INE)
+  hostname: mozdata.microdatahub.com
+  url: http://mozdata.microdatahub.com
+  country_code: MZ
+  geocoverage:
+    level: national
+    description: Mozambique
+    geonames:
+    - https://www.geonames.org/1036973/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Agence Nationale de la Statistique (ANStat)
+  hostname: nada.anstat.ci
+  url: https://nada.anstat.ci
+  country_code: CI
+  custodian:
+    name: Agence Nationale de la Statistique (ANStat)
+    url: https://anstat.ci/
+    ror: https://ror.org/01y6b0e87
+  geocoverage:
+    level: national
+    description: Côte d'Ivoire
+    geonames:
+    - https://www.geonames.org/2287781/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Central Bank of Nigeria (CBN)
+  hostname: nada.cbn.gov.ng
+  url: https://nada.cbn.gov.ng
+  country_code: NG
+  custodian:
+    name: Central Bank of Nigeria
+    url: https://www.cbn.gov.ng
+  geocoverage:
+    level: national
+    description: Nigeria
+    geonames:
+    - https://www.geonames.org/2328926/
+  domains:
+  - macroeconomics
+  - banking
+  - finance
+- name: Institut National de la Statistique (INS)
+  hostname: nada.ins.tn
+  url: http://nada.ins.tn
+  country_code: TN
+  geocoverage:
+    level: national
+    description: Tunisia
+    geonames:
+    - https://www.geonames.org/2464461/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Institut National de la Statistique et de la Démographie (INSTAD)
+  hostname: nada.instad.bj
+  url: https://nada.instad.bj
+  country_code: BJ
+  custodian:
+    name: Institut National de la Statistique et de la Démographie (INSTAD)
+    url: https://instad.bj/
+    ror: https://ror.org/03xvyfv88
+  geocoverage:
+    level: national
+    description: Benin
+    geonames:
+    - https://www.geonames.org/2395170/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+  - demography
+- name: Institut National de la Statistique (INSTAT)
+  hostname: nada.instat.mg
+  url: https://nada.instat.mg
+  country_code: MG
+  custodian:
+    name: Institut National de la Statistique (INSTAT)
+    url: https://instat.mg/
+    ror: https://ror.org/037x48b64
+  geocoverage:
+    level: national
+    description: Madagascar
+    geonames:
+    - https://www.geonames.org/1062947/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+  - demography
+- name: Namibia Statistics Agency (NSA)
+  hostname: nada.nsa.org.na
+  url: https://nada.nsa.org.na
+  country_code: NA
+  geocoverage:
+    level: national
+    description: Namibia
+    geonames:
+    - https://www.geonames.org/3355338/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Institut National de la Statistique (INS)
+  hostname: nada.stat.cm
+  url: http://nada.stat.cm
+  country_code: CM
+  geocoverage:
+    level: national
+    description: Cameroon
+    geonames:
+    - https://www.geonames.org/2233387/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Department of Census and Statistics (DCS)
+  hostname: nada.statistics.gov.lk
+  url: https://nada.statistics.gov.lk
+  country_code: LK
+  geocoverage:
+    level: national
+    description: Sri Lanka
+    geonames:
+    - https://www.geonames.org/1227603/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Central Statistics Office (CSO)
+  hostname: nada.statsmauritius.govmu.org
+  url: https://nada.statsmauritius.govmu.org
+  country_code: MU
+  geocoverage:
+    level: national
+    description: Mauritius
+    geonames:
+    - https://www.geonames.org/934292/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Uganda Bureau of Statistics (UBOS)
+  hostname: nada.ubos.org
+  url: https://nada.ubos.org
+  country_code: UG
+  custodian:
+    name: Uganda Bureau of Statistics
+    url: https://www.ubos.org
+  geocoverage:
+    level: national
+    description: Uganda
+    geonames:
+    - https://www.geonames.org/226074/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: University of Cape Coast (UCC)
+  hostname: nada.ucc.edu.gh
+  url: https://nada.ucc.edu.gh
+  country_code: GH
+  geocoverage:
+    level: national
+    description: Ghana
+    geonames:
+    - https://www.geonames.org/2300680/
+  domains:
+  - education
+  - socio-economic
+- name: Centre for Sustainable Development (CESDEV)
+  hostname: nada.ui.edu.ng
+  url: http://nada.ui.edu.ng
+  country_code: NG
+  geocoverage:
+    level: national
+    description: Nigeria
+    geonames:
+    - https://www.geonames.org/2328926/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Zambia Statistics Agency (ZamStats)
+  hostname: nada.zamstats.gov.zm
+  url: https://nada.zamstats.gov.zm
+  country_code: ZM
+  custodian:
+    name: Zambia Statistics Agency (ZamStats)
+    url: https://zamstats.gov.zm/
+    ror: https://ror.org/01m4w5y60
+  geocoverage:
+    level: national
+    description: Zambia
+    geonames:
+    - https://www.geonames.org/895949/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+  - living-standards
+- name: National Statistics Office (NSO)
+  hostname: psada.psa.gov.ph
+  url: https://psada.psa.gov.ph
+  country_code: PH
+  geocoverage:
+    level: national
+    description: Philippines
+    geonames:
+    - https://www.geonames.org/1694008/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: BPS Statistics Indonesia (Sirusa)
+  hostname: sirusa.bps.go.id
+  url: https://sirusa.bps.go.id
+  country_code: ID
+  custodian:
+    name: Badan Pusat Statistik (BPS)
+    url: https://www.bps.go.id
+  geocoverage:
+    level: national
+    description: Indonesia
+    geonames:
+    - https://www.geonames.org/1643084/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Instituto Nacional de Estadística y Censos (INEC)
+  hostname: sistemas.inec.cr
+  url: http://sistemas.inec.cr/pad5
+  country_code: CR
+  geocoverage:
+    level: national
+    description: Costa Rica
+    geonames:
+    - https://www.geonames.org/3624060/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Kenya National Bureau of Statistics (KNBS)
+  hostname: statistics.knbs.or.ke
+  url: https://statistics.knbs.or.ke/nada
+  country_code: KE
+  geocoverage:
+    level: national
+    description: Kenya
+    geonames:
+    - https://www.geonames.org/192950/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: National Statistical Office (NSO)
+  hostname: web.nso.mn
+  url: http://web.nso.mn/nada
+  country_code: MN
+  geocoverage:
+    level: national
+    description: Mongolia
+    geonames:
+    - https://www.geonames.org/2029969/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: National Statistical Office (NSO)
+  hostname: web.nso.mn
+  url: http://web.nso.mn/nadamn
+  country_code: MN
+  geocoverage:
+    level: national
+    description: Mongolia
+    geonames:
+    - https://www.geonames.org/2029969/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Instituto Nacional de Estadística e Informática (INEI)
+  hostname: webinei.inei.gob.pe
+  url: http://webinei.inei.gob.pe/anda_inei
+  country_code: PE
+  geocoverage:
+    level: national
+    description: Peru
+    geonames:
+    - https://www.geonames.org/3932488/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Data First
+  hostname: www.datafirst.uct.ac.za
+  url: https://www.datafirst.uct.ac.za/dataportal
+  country_code: null
+  custodian:
+    name: DataFirst, University of Cape Town
+    url: https://www.datafirst.uct.ac.za
+    ror: https://ror.org/03p74gp79
+  geocoverage:
+    level: regional
+    description: Africa
+    geonames:
+    - https://www.geonames.org/6255146/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Economics Research Forum
+  hostname: www.erfdataportal.com
+  url: http://www.erfdataportal.com
+  country_code: null
+  geocoverage:
+    level: global
+    description: Worldwide
+    geonames: []
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: ILO Survey Catalogue
+  hostname: www.ilo.org
+  url: https://www.ilo.org/surveyLib
+  country_code: null
+  custodian:
+    name: International Labour Organization (ILO)
+    url: https://ilostat.ilo.org
+    ror: https://ror.org/05nnzcz55
+  geocoverage:
+    level: global
+    description: Worldwide
+    geonames: []
+  domains:
+  - labor
+  - employment
+  - social-security
+- name: ILO Central Microdata Repository
+  hostname: www.ilo.org
+  url: http://www.ilo.org/surveydata
+  country_code: CH
+  custodian:
+    name: International Labour Organization (ILO)
+    url: https://www.ilo.org
+    ror: https://ror.org/05nnzcz55
+  geocoverage:
+    level: global
+    description: Worldwide
+    geonames: []
+  domains:
+  - labor
+  - employment
+  - social-security
+- name: Instituto Nacional de Estatística (INE)
+  hostname: www.ine.cv
+  url: https://www.ine.cv/dircaboverde
+  country_code: CV
+  custodian:
+    name: Instituto Nacional de Estatística (INE)
+    url: https://ine.cv/
+    ror: https://ror.org/0491p1a52
+  geocoverage:
+    level: national
+    description: Cabo Verde
+    geonames:
+    - https://www.geonames.org/3374766/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+  - demography
+- name: Instituto Nacional de Estadística (INE)
+  hostname: www.ine.gub.uy
+  url: http://www.ine.gub.uy:82/Anda4
+  country_code: UY
+  geocoverage:
+    level: national
+    description: Uruguay
+    geonames:
+    - https://www.geonames.org/3439705/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Instituto Nacional de Estadística y Geografía (INEGI)
+  hostname: www.inegi.org.mx
+  url: http://www.inegi.org.mx/rnm
+  country_code: MX
+  geocoverage:
+    level: national
+    description: Mexico
+    geonames:
+    - https://www.geonames.org/3996063/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Institut de Statistiques et d’Etudes Economiques du Burundi
+  hostname: www.isteebu.bi
+  url: http://www.isteebu.bi/nada
+  country_code: BI
+  geocoverage:
+    level: national
+    description: Burundi
+    geonames:
+    - https://www.geonames.org/433561/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Zimbabwe National Statistic Agency (ZIMSTAT)
+  hostname: www.nada.zimstat.co.zw
+  url: http://www.nada.zimstat.co.zw/nada
+  country_code: ZW
+  geocoverage:
+    level: national
+    description: Zimbabwe
+    geonames:
+    - https://www.geonames.org/878675/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: National Bureau of Statistics (NBS)
+  hostname: www.nsb.gov.bt
+  url: http://www.nsb.gov.bt/nada4
+  country_code: BT
+  geocoverage:
+    level: national
+    description: Bhutan
+    geonames:
+    - https://www.geonames.org/1252634/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Palestine Central Bureau of Statistics (Arabic Language)
+  hostname: www.pcbs.gov.ps
+  url: http://www.pcbs.gov.ps/PCBS-Metadata-ar-v4.3
+  country_code: PS
+  geocoverage:
+    level: national
+    description: Palestine
+    geonames:
+    - https://www.geonames.org/6254930/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Palestinian Central Bureau of Statistics (English Language)
+  hostname: www.pcbs.gov.ps
+  url: http://www.pcbs.gov.ps/PCBS-Metadata-en-v4.3
+  country_code: PS
+  geocoverage:
+    level: national
+    description: Palestine
+    geonames:
+    - https://www.geonames.org/6254930/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Instituto Nacional de Estatística (INE)
+  hostname: www.stat-guinebissau.com
+  url: http://www.stat-guinebissau.com/nada41
+  country_code: GW
+  geocoverage:
+    level: national
+    description: Guinea-Bissau
+    geonames:
+    - https://www.geonames.org/2372248/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Institut National de la Statistique (INS)
+  hostname: www.stat-niger.org
+  url: https://www.stat-niger.org/anado
+  country_code: NE
+  geocoverage:
+    level: national
+    description: Niger
+    geonames:
+    - https://www.geonames.org/2440489/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census
+- name: Central Statistics Office
+  hostname: yemen-cso.microdatahub.com
+  url: http://yemen-cso.microdatahub.com
+  country_code: YE
+  geocoverage:
+    level: national
+    description: Yemen
+    geonames:
+    - https://www.geonames.org/69543/
+  domains:
+  - official-statistics
+  - socio-economic
+  - census

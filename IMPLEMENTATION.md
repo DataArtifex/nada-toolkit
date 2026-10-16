@@ -13,10 +13,11 @@ The toolkit is designed to be a high-level, type-safe wrapper around the IHSN NA
     - Manages `requests-cache` sessions for network performance and cache transparency.
     - Automatic version detection (`detect_server_version`) identifying NADA v5 (`/api/`) vs v4 (`/index.php/api/`) endpoint prefixes.
     - Provides high-level methods for Catalog Search, Collection browsing, Country/Topic codes, and Study exports (`ddi`, `json`, `resources`, `croissant`, `schema`).
-2.  **`ServerInstallation`**: A Pydantic model representing a NADA repository installation with rich metadata (name, hostname, coordinates, launch year, ISO 3166-1 alpha-2 `country_code`, description, etc.) and helper properties (`clean_hostname`, `url`).
+2.  **`ServerInstallation`**, **`Custodian`**, & **`GeoCoverage`**: Pydantic models representing a NADA repository installation with rich metadata (name, hostname, ISO 3166-1 alpha-2 `country_code`, custodian details, geographic coverage with `geonames` URI lists, topical domains, etc.) and helper properties (`clean_hostname`, `url`).
 3.  **`SearchParameters`**: A comprehensive Pydantic model validating NADA Catalog Search API query parameters (pagination, keyword searches, collection/country/topic filters, date ranges, and sorting).
 4.  **`fetch_nada_installations` & Registry Engine**: The centralized registry subsystem for discovering worldwide NADA instances.
-    - Multi-source registry loading (remote or local CSV/JSON endpoints with configurable timeout).
+    - Backed by a community-maintained `data/servers.yaml` file in the project repository and bundled package resources (`load_bundled_servers_yaml`).
+    - Multi-source registry loading (remote GitHub raw registry endpoint or local YAML/JSON/CSV endpoints with configurable timeout).
     - Built-in ISO 3166-1 Alpha-2 country crosswalk (`COUNTRY_TO_ISO2`, `get_iso2_code`, `matches_country`).
     - Filtering by hostname, ISO country code, or country substring.
     - Automatic fallback synthesis for unlisted, private, or development NADA deployments.

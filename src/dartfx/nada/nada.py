@@ -1,4 +1,5 @@
 import csv
+import importlib.resources
 import inspect
 import io
 import json
@@ -6,11 +7,13 @@ import logging
 import os
 import re
 import urllib.parse
+from pathlib import Path
 from typing import Any, Literal
 
 import requests
 import requests_cache
-from pydantic import BaseModel, ConfigDict, Field
+import yaml
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .__about__ import __version__
 
@@ -105,6 +108,8 @@ COUNTRY_TO_ISO2: dict[str, str] = {
     "ISRAEL": "IL",
     "ITALY": "IT",
     "IVORY COAST": "CI",
+    "CÔTE D'IVOIRE": "CI",
+    "COTE D'IVOIRE": "CI",
     "JAMAICA": "JM",
     "JAPAN": "JP",
     "JORDAN": "JO",
@@ -224,6 +229,30 @@ COUNTRY_TO_ISO2: dict[str, str] = {
     "ZIMBABWE": "ZW",
 }
 
+# Reverse ISO 3166-1 Alpha-2 to Canonical Country Name mapping
+ISO2_TO_COUNTRY: dict[str, str] = {
+    code: name.title() for name, code in COUNTRY_TO_ISO2.items() if name not in ("USA", "UK")
+}
+ISO2_TO_COUNTRY.update(
+    {
+        "US": "United States",
+        "GB": "United Kingdom",
+        "CI": "Côte d'Ivoire",
+        "CD": "DR Congo",
+        "LA": "Laos",
+        "FM": "Micronesia",
+        "PS": "Palestine",
+        "RU": "Russia",
+        "KR": "South Korea",
+        "KP": "North Korea",
+        "SY": "Syria",
+        "TZ": "Tanzania",
+        "VN": "Vietnam",
+        "VG": "British Virgin Islands",
+        "VI": "U.S. Virgin Islands",
+    }
+)
+
 
 def get_iso2_code(raw_country: str, existing_code: str = "") -> str:
     """Resolve raw country string to 2-letter ISO 3166-1 Alpha-2 code."""
@@ -267,6 +296,46 @@ def matches_country(target_filter: str, raw_country: str, existing_code: str = "
     return False
 
 
+class Custodian(BaseModel):
+    """Organization custodian responsible for the NADA catalog."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str | None = None
+    url: str | None = None
+    ror: str | None = None
+
+
+class GeoCoverage(BaseModel):
+    """Geographical scope and coverage details."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    level: Literal["global", "regional", "national", "subnational", "city", "other"] | str | None = None
+    description: str | None = None
+    geonames: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_geonames(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            gn = data.get("geonames")
+            if gn is None:
+                gn = data.get("geonames_uri") or data.get("geonames_uris")
+            if isinstance(gn, str):
+                data["geonames"] = [gn] if gn.strip() else []
+            elif isinstance(gn, list):
+                data["geonames"] = [str(x) for x in gn if x]
+            else:
+                data["geonames"] = []
+        return data
+
+    @property
+    def geonames_uri(self) -> str | None:
+        """Backwards compatibility property returning the primary GeoNames URI."""
+        return self.geonames[0] if self.geonames else None
+
+
 class ServerInstallation(BaseModel):
     """Represents a NADA installation with metadata and helper properties."""
 
@@ -286,11 +355,50 @@ class ServerInstallation(BaseModel):
     about_url: str | None = None
     id: str | None = None
     scheme: str = "https"
+    custodian: Custodian | None = None
+    geocoverage: GeoCoverage | None = None
+    domains: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_input(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            data = dict(data)
+            url = data.get("url") or data.get("home")
+            if url and not data.get("hostname"):
+                data["hostname"] = url
+            if url and str(url).lower().startswith("http://") and "scheme" not in data:
+                data["scheme"] = "http"
+            # Normalize custodian dict fields (home_page -> url, ror_uri -> ror)
+            cust = data.get("custodian")
+            if isinstance(cust, dict):
+                norm_cust = dict(cust)
+                if "home_page" in norm_cust and "url" not in norm_cust:
+                    norm_cust["url"] = norm_cust.pop("home_page")
+                if "ror_uri" in norm_cust and "ror" not in norm_cust:
+                    norm_cust["ror"] = norm_cust.pop("ror_uri")
+                data["custodian"] = norm_cust
+            elif isinstance(cust, str):
+                if cust.startswith("http://") or cust.startswith("https://"):
+                    data["custodian"] = {"url": cust}
+                else:
+                    data["custodian"] = {"name": cust}
+            # Normalize topics to domains
+            if "topics" in data and not data.get("domains"):
+                data["domains"] = data.pop("topics")
+            # Normalize string geocoverage
+            geo = data.get("geocoverage")
+            if isinstance(geo, str):
+                data["geocoverage"] = {"description": geo}
+        return data
 
     def model_post_init(self, __context: Any) -> None:
-        """Derive country_code, clean hostname, and scheme if not provided."""
+        """Derive country_code, country, clean hostname, and scheme if not provided."""
         if not self.country_code and self.country:
             self.country_code = get_iso2_code(self.country)
+        elif not self.country and self.country_code:
+            self.country = ISO2_TO_COUNTRY.get(self.country_code.strip().upper())
+
         if self.hostname:
             if self.hostname.lower().startswith("http://"):
                 self.scheme = "http"
@@ -323,7 +431,7 @@ class ServerInstallation(BaseModel):
 
 
 NADA_DIRECTORY_URLS: list[str] = [
-    "https://docs.google.com/spreadsheets/d/1apcpCSHlS7lPwzs3DGNe7wj_XKaDQHJrpuNlx4Sswrc/export?format=csv",
+    "https://raw.githubusercontent.com/DataArtifex/nada-toolkit/main/data/servers.yaml",
 ]
 
 DEFAULT_NADA_INSTALLATIONS: list[dict[str, Any]] = [
@@ -459,13 +567,13 @@ DEFAULT_NADA_INSTALLATIONS: list[dict[str, Any]] = [
     },
     {
         "name": "Statistics Sierra Leone",
-        "hostname": "www.statistics.sl",
+        "hostname": "microdata.statistics.sl",
         "country": "Sierra Leone",
         "country_code": "SL",
         "continent": "Africa",
         "version": 5,
         "description": "Sierra Leone National Data Archive.",
-        "about_url": "https://www.statistics.sl",
+        "about_url": "https://microdata.statistics.sl",
     },
     {
         "name": "Ethiopian Statistics Service",
@@ -480,6 +588,74 @@ DEFAULT_NADA_INSTALLATIONS: list[dict[str, Any]] = [
 ]
 
 
+def load_bundled_servers_yaml() -> list[dict[str, Any]]:
+    """Load servers registry from bundled or local servers.yaml file."""
+    # 1. Environment variable override
+    env_path = os.environ.get("NADA_SERVERS_FILE")
+    if env_path and Path(env_path).is_file():
+        try:
+            with open(env_path, encoding="utf-8") as f:
+                content = yaml.safe_load(f)
+                if isinstance(content, list):
+                    return content
+                if isinstance(content, dict):
+                    candidates = content.get("servers") or content.get("installations")
+                    if isinstance(candidates, list):
+                        return candidates
+        except Exception as e:
+            logging.debug(f"Failed loading servers from NADA_SERVERS_FILE ({env_path}): {e}")
+
+    # 2. Package resources (wheel / installed package)
+    try:
+        pkg_files = importlib.resources.files("dartfx.nada")
+        for rel_loc in [("data", "servers.yaml"), ("servers.yaml",)]:
+            pkg_yaml = pkg_files.joinpath(*rel_loc)
+            if pkg_yaml.is_file():
+                content = yaml.safe_load(pkg_yaml.read_text(encoding="utf-8"))
+                if isinstance(content, list):
+                    return content
+                if isinstance(content, dict):
+                    candidates = content.get("servers") or content.get("installations")
+                    if isinstance(candidates, list):
+                        return candidates
+    except Exception as e:
+        logging.debug(f"Failed loading packaged servers.yaml: {e}")
+
+    # 3. Source repository root (development checkout)
+    for rel_path in [("data", "servers.yaml"), ("servers.yaml",)]:
+        try:
+            repo_file = Path(__file__).resolve().parents[3].joinpath(*rel_path)
+            if repo_file.is_file():
+                with open(repo_file, encoding="utf-8") as f:
+                    content = yaml.safe_load(f)
+                    if isinstance(content, list):
+                        return content
+                    if isinstance(content, dict):
+                        candidates = content.get("servers") or content.get("installations")
+                        if isinstance(candidates, list):
+                            return candidates
+        except Exception as e:
+            logging.debug(f"Failed loading repo servers.yaml ({rel_path}): {e}")
+
+    # 4. Current working directory
+    for rel_path in [("data", "servers.yaml"), ("servers.yaml",)]:
+        try:
+            cwd_file = Path.cwd().joinpath(*rel_path)
+            if cwd_file.is_file():
+                with open(cwd_file, encoding="utf-8") as f:
+                    content = yaml.safe_load(f)
+                    if isinstance(content, list):
+                        return content
+                    if isinstance(content, dict):
+                        candidates = content.get("servers") or content.get("installations")
+                        if isinstance(candidates, list):
+                            return candidates
+        except Exception as e:
+            logging.debug(f"Failed loading cwd servers.yaml ({rel_path}): {e}")
+
+    return []
+
+
 def fetch_nada_installations(
     target_server: str | None = None,
     country: str | None = None,
@@ -487,7 +663,7 @@ def fetch_nada_installations(
     urls: list[str] | None = None,
     fallback_unlisted: bool = False,
 ) -> list[ServerInstallation]:
-    """Returns a list of NADA installations from remote registry endpoints or built-in defaults.
+    """Returns a list of NADA installations from remote registry endpoints, local servers.yaml, or built-in defaults.
 
     Supports optional filtering by server hostname or country (ISO-2 code or country name).
     If fallback_unlisted is True and a specific target_server is requested but not found in the
@@ -496,86 +672,107 @@ def fetch_nada_installations(
     directory_urls = urls or NADA_DIRECTORY_URLS
     raw_list: list[dict[str, Any]] = []
 
-    for url in directory_urls:
-        if not url:
+    for entry in directory_urls:
+        if not entry:
             continue
+
+        text: str = ""
+        # Check if entry is a local file
+        if Path(entry).is_file():
+            try:
+                text = Path(entry).read_text(encoding="utf-8")
+            except Exception as e:
+                logging.debug(f"Failed reading local servers file {entry}: {e}")
+                continue
+        elif entry.startswith(("http://", "https://")):
+            try:
+                resp = requests.get(entry, timeout=timeout)
+                if resp.status_code == 200:
+                    text = resp.text
+                else:
+                    logging.debug(f"Registry endpoint {entry} returned HTTP {resp.status_code}")
+                    continue
+            except Exception as e:
+                logging.debug(f"Failed fetching registry from {entry}: {e}")
+                continue
+        else:
+            continue
+
+        # Try parsing YAML / JSON
         try:
-            resp = requests.get(url, timeout=timeout)
-            if resp.status_code == 200:
-                content_type = resp.headers.get("Content-Type", "")
-                text = resp.text
-                if "application/json" in content_type or text.strip().startswith(("{", "[")):
-                    try:
-                        data = resp.json()
-                        if isinstance(data, dict) and "installations" in data:
-                            raw_list = data["installations"]
-                            break
-                        elif isinstance(data, list):
-                            raw_list = data
-                            break
-                    except Exception:
-                        pass
-
-                # Parse CSV format (such as Google Sheets export)
-                try:
-                    csv_io = io.StringIO(text)
-                    reader = csv.DictReader(csv_io)
-                    csv_items = []
-                    for row in reader:
-                        # Normalize headers
-                        h_map = {k.strip().lower(): v.strip() for k, v in row.items() if k and v}
-                        host = (
-                            h_map.get("hostname")
-                            or h_map.get("home")
-                            or h_map.get("url")
-                            or h_map.get("server")
-                            or h_map.get("server url")
-                            or ""
-                        )
-                        if not host:
-                            continue
-                        name = (
-                            h_map.get("name")
-                            or h_map.get("title")
-                            or h_map.get("repository")
-                            or h_map.get("organization")
-                            or host
-                        )
-                        c = h_map.get("country") or h_map.get("geocoverage") or h_map.get("nation") or ""
-                        cc = h_map.get("country_code") or h_map.get("code") or h_map.get("iso2") or ""
-                        ver = h_map.get("version") or h_map.get("server_version")
-                        if isinstance(ver, str):
-                            clean_ver = ver.lower().replace(".x", "").replace("v", "").strip()
-                            if clean_ver.isdigit():
-                                ver = int(clean_ver)
-                        studies_cnt = h_map.get("n_studies") or h_map.get("studies_count")
-                        if studies_cnt:
-                            clean_cnt = studies_cnt.replace(",", "").strip()
-                            studies_cnt_val = int(clean_cnt) if clean_cnt.isdigit() else None
-                        else:
-                            studies_cnt_val = None
-
-                        csv_items.append(
-                            {
-                                "name": name,
-                                "hostname": host,
-                                "country": c,
-                                "country_code": cc,
-                                "version": ver,
-                                "status": h_map.get("status"),
-                                "studies_count": studies_cnt_val,
-                                "about_url": h_map.get("about_url")
-                                or h_map.get("custodian")
-                                or (f"https://{host}" if host else ""),
-                            }
-                        )
-                    if csv_items:
-                        raw_list = csv_items
-                        break
-                except Exception:
-                    pass
+            parsed = yaml.safe_load(text)
+            if isinstance(parsed, list):
+                raw_list = parsed
+                break
+            elif isinstance(parsed, dict):
+                candidates = parsed.get("servers") or parsed.get("installations")
+                if isinstance(candidates, list):
+                    raw_list = candidates
+                    break
         except Exception:
-            continue
+            pass
+
+        # Parse CSV format (legacy compatibility)
+        try:
+            csv_io = io.StringIO(text)
+            reader = csv.DictReader(csv_io)
+            csv_items = []
+            for row in reader:
+                h_map = {k.strip().lower(): v.strip() for k, v in row.items() if k and v}
+                host = (
+                    h_map.get("hostname")
+                    or h_map.get("home")
+                    or h_map.get("url")
+                    or h_map.get("server")
+                    or h_map.get("server url")
+                    or ""
+                )
+                if not host:
+                    continue
+                name = (
+                    h_map.get("name")
+                    or h_map.get("title")
+                    or h_map.get("repository")
+                    or h_map.get("organization")
+                    or host
+                )
+                c = h_map.get("country") or h_map.get("geocoverage") or h_map.get("nation") or ""
+                cc = h_map.get("country_code") or h_map.get("code") or h_map.get("iso2") or ""
+                ver = h_map.get("version") or h_map.get("server_version")
+                if isinstance(ver, str):
+                    clean_ver = ver.lower().replace(".x", "").replace("v", "").strip()
+                    if clean_ver.isdigit():
+                        ver = int(clean_ver)
+                studies_cnt = h_map.get("n_studies") or h_map.get("studies_count")
+                if studies_cnt:
+                    clean_cnt = studies_cnt.replace(",", "").strip()
+                    studies_cnt_val = int(clean_cnt) if clean_cnt.isdigit() else None
+                else:
+                    studies_cnt_val = None
+
+                csv_items.append(
+                    {
+                        "name": name,
+                        "hostname": host,
+                        "country": c,
+                        "country_code": cc,
+                        "version": ver,
+                        "status": h_map.get("status"),
+                        "studies_count": studies_cnt_val,
+                        "about_url": h_map.get("about_url")
+                        or h_map.get("custodian")
+                        or (f"https://{host}" if host else ""),
+                    }
+                )
+            if csv_items:
+                raw_list = csv_items
+                break
+        except Exception:
+            pass
+
+    # Fallback to local bundled servers.yaml if remote registry did not resolve
+    if not raw_list:
+        raw_list = load_bundled_servers_yaml()
 
     if not raw_list:
         raw_list = list(DEFAULT_NADA_INSTALLATIONS)
