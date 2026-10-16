@@ -130,6 +130,15 @@ def test_cli_info_command(monkeypatch) -> None:
             return {"result": {"total": 13085}}
 
     monkeypatch.setattr("dartfx.nada.cli.get_server", lambda *_args, **_kwargs: MockServer())
+    monkeypatch.setattr(
+        "dartfx.nada.harvester.fetch_server_stats",
+        lambda *_args, **_kwargs: {
+            "is_nada": True,
+            "studies": 13085,
+            "collections": 1,
+            "version": "5",
+        },
+    )
 
     runner = CliRunner()
     res_info = runner.invoke(app, ["info", "catalog.ihsn.org"])
