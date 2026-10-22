@@ -154,19 +154,32 @@ dartfx-nada harvest --server microdata.worldbank.org --dry-run
 
 Benchmark and inspect live server status:
 
-# Display live study counts across servers
-
+# Display live study counts and detected PHP runtime (alphabetical by server name by default)
 dartfx-nada stats
 
-# Inspect servers in a specific country (forcing live bypass of 24h cache)
+# Sort by study count (largest archives first)
+dartfx-nada stats --sort studies
 
+# Sort by response latency (fastest first) or country
+dartfx-nada stats --sort latency
+dartfx-nada stats --sort country
+
+# Inspect servers in a specific country (forcing live bypass of 24h cache)
 dartfx-nada stats --country UG --refresh
 
-````
+# Show extended server environment details (including web server banner)
+dartfx-nada stats --show-env
+```
 
-#### Interpreting the Status Column
+#### Interpreting Server Environment & Status Columns
 
-The `stats` table displays latency ratings and diagnostic status badges:
+The `stats` table displays latency ratings, PHP runtime risk indicators, and diagnostic status badges:
+- **PHP Version Column**:
+  - **`Green`** (`>= 8.2`): Modern, active security support.
+  - **`Yellow`** (`8.0 – 8.1`): End-of-Life (EOL), upgrade recommended.
+  - **`Bold Red`** (`< 8.0`): Critical EOL (e.g. PHP 5.6, 7.4), elevated vulnerability risk.
+  - **`Hidden`**: Headers stripped by reverse proxy, CDN, or `expose_php = Off`.
+  - **`~5.x-7.x`** (Dim Red): Inferred legacy runtime when running NADA v4 with hidden banners.
 - **`Online`**: Reachable NADA server returning active study counts.
 - **`Cached (24h)`**: Cached metrics loaded from local `.stats_cache.json` (use `--refresh` to force live checks).
 - **`Online (HTTPS Avail)`**: Server currently reached over HTTP, but HTTPS is fully available and recommended for upgrade.
@@ -303,7 +316,7 @@ If you prefer not to edit YAML directly, simply [open a GitHub Issue](https://gi
 - **Server URL**: (e.g., `https://microdata.example.org`)
 - **Organization Name**: (e.g., `National Statistical Office`)
 - **Country**: (e.g., `Senegal` / `SN`)
-- **Custodian Homepage & ROR URI** (optional)
+- **Custodian Homepage & ROR ID** (optional, e.g. `0539hqx70`)
 - **Topical / Domain Coverage** (optional, e.g. `census`, `agriculture`, `official-statistics`)
 
 ### Registry YAML Schema
@@ -316,26 +329,26 @@ Each entry in [`data/servers.yaml`](data/servers.yaml) adheres to the following 
 | `hostname` | `string` | **Yes** | Server hostname domain (e.g. `microdata.worldbank.org`). |
 | `url` | `string` | **Yes** | Full web catalog endpoint URL. |
 | `country_code` | `string` | Optional | Two-letter ISO 3166-1 alpha-2 code (e.g. `SN`, `UG`, `US`), or null for global/international agencies. |
-| `custodian` | `object` | Optional | Custodian organization details (`name`, `url`, `ror`). |
+| `custodian` | `object` | Optional | Custodian organization details (`name`, `url`, `ror` identifier). |
 | `geocoverage` | `object` | Optional | Scope (`level`: `global` \| `regional` \| `national` \| `subnational` \| `city` \| `other`), textual `description`, and `geonames` list of URIs. |
 | `domains` | `list` | Optional | List of thematic tags (e.g. `official-statistics`, `census`, `socio-economic`, `agriculture`). |
 
 #### Example Entry
 
 ```yaml
-- name: Agence Nationale de la Statistique et de la Démographie (ANSD)
-  hostname: anads.ansd.sn
-  url: https://anads.ansd.sn
-  country_code: SN
+- name: Millennium Challenge Corporation
+  hostname: mcc.icpsr.umich.edu
+  url: https://mcc.icpsr.umich.edu/evaluations/index.php/catalog
+  country_code: US
   custodian:
-    name: Agence Nationale de la Statistique et de la Démographie (ANSD)
-    url: https://www.ansd.sn/
-    ror: https://ror.org/033jfe446
+    name: Millennium Challenge Corporation (MCC)
+    url: https://www.mcc.gov
+    ror: 0539hqx70
   geocoverage:
     level: national
-    description: Senegal
+    description: United States
     geonames:
-      - https://www.geonames.org/2245662/
+      - https://www.geonames.org/6252001/
   domains:
     - official-statistics
     - socio-economic

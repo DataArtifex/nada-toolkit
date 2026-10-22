@@ -9,7 +9,7 @@
 #   custodian: (Optional) Organization responsible for the archive
 #     name: Organization name
 #     url: Organization home page URL
-#     ror: Research Organization Registry (ROR) URI (e.g. https://ror.org/...)
+#     ror: Research Organization Registry (ROR) identifier (e.g. 033jfe446)
 #   geocoverage: (Optional) Geographic coverage scope
 #     level: Coverage level (global | regional | national | subnational | city | other)
 #     description: Description of the coverage region or country
@@ -40,7 +40,6 @@
   custodian:
     name: Agence Nationale de la Statistique et de la Démographie (ANSD)
     url: https://www.ansd.sn/
-    ror: https://ror.org/033jfe446
   geocoverage:
     level: national
     description: Senegal
@@ -109,7 +108,7 @@
   custodian:
     name: World Health Organization (WHO)
     url: https://www.who.int
-    ror: https://ror.org/01f809v54
+    ror: 01f80g185
   geocoverage:
     level: global
     description: Worldwide
@@ -153,6 +152,7 @@
   custodian:
     name: Office of the Registrar General & Census Commissioner, India
     url: https://censusindia.gov.in/
+    ror: 05jhdev04
   geocoverage:
     level: national
     description: India
@@ -169,6 +169,7 @@
   custodian:
     name: Central Agency for Public Mobilization and Statistics (CAPMAS)
     url: https://capmas.gov.eg/
+    ror: 040wqw555
   geocoverage:
     level: national
     description: Egypt
@@ -198,7 +199,7 @@
   custodian:
     name: Institut National d'Études Démographiques (INED)
     url: https://www.ined.fr
-    ror: https://ror.org/00yjwf890
+    ror: 02cnsac56
   geocoverage:
     level: national
     description: France
@@ -215,7 +216,7 @@
   custodian:
     name: FORS - Swiss Centre of Expertise in the Social Sciences
     url: https://forscenter.ch
-    ror: https://ror.org/02v672m69
+    ror: 00weppy16
   geocoverage:
     level: national
     description: Switzerland
@@ -232,6 +233,7 @@
   custodian:
     name: Instituto Nacional de Estadística e Informática
     url: https://www.inei.gob.pe
+    ror: 02e838q34
   geocoverage:
     level: national
     description: Peru
@@ -277,7 +279,7 @@
   custodian:
     name: Millennium Challenge Corporation (MCC)
     url: https://www.mcc.gov
-    ror: https://ror.org/02y506660
+    ror: 0539hqx70
   geocoverage:
     level: national
     description: United States
@@ -336,7 +338,7 @@
   custodian:
     name: Food and Agriculture Organization (FAO)
     url: https://www.fao.org
-    ror: https://ror.org/05v5ktt08
+    ror: 00pe0tf51
   geocoverage:
     level: global
     description: Worldwide
@@ -352,7 +354,6 @@
   custodian:
     name: Gambia Bureau of Statistics (GBoS)
     url: https://gbosdata.org/
-    ror: https://ror.org/03g849594
   geocoverage:
     level: national
     description: Gambia
@@ -432,6 +433,7 @@
   custodian:
     name: Liberia Institute of Statistics & Geo-Information Services (LISGIS)
     url: https://lisgislr.org/
+    ror: 0543zsz75
   geocoverage:
     level: national
     description: Liberia
@@ -448,7 +450,6 @@
   custodian:
     name: National Bureau of Statistics (NBS)
     url: https://nbs.go.tz/
-    ror: https://ror.org/05w6e0a44
   geocoverage:
     level: national
     description: Tanzania
@@ -465,7 +466,6 @@
   custodian:
     name: National Bureau of Statistics (NBS)
     url: https://nigerianstat.gov.ng/
-    ror: https://ror.org/032j5c935
   geocoverage:
     level: national
     description: Nigeria
@@ -495,7 +495,6 @@
   custodian:
     name: National Statistics Office (NSO)
     url: https://nsonepal.gov.np/
-    ror: https://ror.org/00z2b7252
   geocoverage:
     level: national
     description: Nepal
@@ -538,7 +537,6 @@
   custodian:
     name: Statistics Sierra Leone (Stats SL)
     url: https://statistics.sl/
-    ror: https://ror.org/03g1tcf74
   geocoverage:
     level: national
     description: Sierra Leone
@@ -555,7 +553,6 @@
   custodian:
     name: Ghana Statistical Service (GSS)
     url: https://statsghana.gov.gh/
-    ror: https://ror.org/043t1q674
   geocoverage:
     level: national
     description: Ghana
@@ -586,7 +583,7 @@
   custodian:
     name: United Nations High Commissioner for Refugees (UNHCR)
     url: https://www.unhcr.org
-    ror: https://ror.org/03wep4v47
+    ror: 0437ej039
   geocoverage:
     level: global
     description: Worldwide
@@ -603,7 +600,7 @@
   custodian:
     name: World Bank Group
     url: https://www.worldbank.org
-    ror: https://ror.org/01pnzbv35
+    ror: 02md09461
   geocoverage:
     level: global
     description: Worldwide
@@ -645,7 +642,6 @@
   custodian:
     name: Agence Nationale de la Statistique (ANStat)
     url: https://anstat.ci/
-    ror: https://ror.org/01y6b0e87
   geocoverage:
     level: national
     description: Côte d'Ivoire
@@ -691,7 +687,6 @@
   custodian:
     name: Institut National de la Statistique et de la Démographie (INSTAD)
     url: https://instad.bj/
-    ror: https://ror.org/03xvyfv88
   geocoverage:
     level: national
     description: Benin
@@ -709,7 +704,7 @@
   custodian:
     name: Institut National de la Statistique (INSTAT)
     url: https://instat.mg/
-    ror: https://ror.org/037x48b64
+    ror: 05g23w557
   geocoverage:
     level: national
     description: Madagascar
@@ -820,7 +815,7 @@
   custodian:
     name: Zambia Statistics Agency (ZamStats)
     url: https://zamstats.gov.zm/
-    ror: https://ror.org/01m4w5y60
+    ror: 05n7sxn21
   geocoverage:
     level: national
     description: Zambia
@@ -851,6 +846,7 @@
   custodian:
     name: Badan Pusat Statistik (BPS)
     url: https://www.bps.go.id
+    ror: 04tq55h40
   geocoverage:
     level: national
     description: Indonesia
@@ -932,7 +928,7 @@
   custodian:
     name: DataFirst, University of Cape Town
     url: https://www.datafirst.uct.ac.za
-    ror: https://ror.org/03p74gp79
+    ror: 03p74gp79
   geocoverage:
     level: regional
     description: Africa
@@ -961,7 +957,7 @@
   custodian:
     name: International Labour Organization (ILO)
     url: https://ilostat.ilo.org
-    ror: https://ror.org/05nnzcz55
+    ror: 03tebpn36
   geocoverage:
     level: global
     description: Worldwide
@@ -977,7 +973,7 @@
   custodian:
     name: International Labour Organization (ILO)
     url: https://www.ilo.org
-    ror: https://ror.org/05nnzcz55
+    ror: 03tebpn36
   geocoverage:
     level: global
     description: Worldwide
@@ -993,7 +989,7 @@
   custodian:
     name: Instituto Nacional de Estatística (INE)
     url: https://ine.cv/
-    ror: https://ror.org/0491p1a52
+    ror: 04d9bp554
   geocoverage:
     level: national
     description: Cabo Verde

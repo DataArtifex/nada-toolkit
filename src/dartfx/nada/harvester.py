@@ -104,6 +104,40 @@ def format_version(version: str | int | float | None) -> str:
     return ver_str
 
 
+def format_php_version(
+    php_ver: str | None,
+    nada_ver: str | int | float | None = None,
+    is_online: bool = True,
+) -> str:
+    """Format detected PHP version with security/lifecycle color coding.
+
+    - PHP < 8.0: Red (Critical End-of-Life)
+    - PHP 8.0 - 8.1: Yellow (End-of-Life)
+    - PHP >= 8.2: Green (Active / Security Support)
+    - None / Hidden: Dim 'Hidden' or dim red '~5.x-7.x' when running legacy NADA v4
+    """
+    if not is_online:
+        return "-"
+    if not php_ver:
+        if str(nada_ver) == "4":
+            return "[dim red]~5.x-7.x[/dim red]"
+        return "[dim]Hidden[/dim]"
+
+    parts = str(php_ver).split(".")
+    try:
+        major = int(parts[0])
+        minor = int(parts[1]) if len(parts) > 1 else 0
+    except (ValueError, IndexError):
+        return str(php_ver)
+
+    if major < 8:
+        return f"[bold red]{php_ver}[/bold red]"
+    elif major == 8 and minor < 2:
+        return f"[yellow]{php_ver}[/yellow]"
+    else:
+        return f"[green]{php_ver}[/green]"
+
+
 def get_server_dir_name(host: str) -> str:
     """Extract filesystem-safe directory name for a server by stripping protocol, path, and port.
 
@@ -854,6 +888,49 @@ def _is_parked_or_domain_sale(orig_host: str, resp: requests.Response) -> bool:
     return False
 
 
+def extract_server_environment(response: requests.Response | None) -> tuple[str | None, str | None]:
+    """Extract detected PHP version and web server banner from HTTP response headers.
+
+    Returns:
+        tuple[str | None, str | None]: (php_version, web_server)
+    """
+    php_version: str | None = None
+    web_server: str | None = None
+
+    if response is None:
+        return None, None
+
+    headers = getattr(response, "headers", None)
+    if not isinstance(headers, (dict, requests.structures.CaseInsensitiveDict)):
+        return None, None
+
+    # 1. Search for PHP version across standard headers
+    for header_name in ("X-Powered-By", "Server", "X-PHP-Version"):
+        val = headers.get(header_name)
+        if not isinstance(val, str) or not val.strip():
+            continue
+        m = re.search(r"PHP[ /]([0-9]+(?:\.[0-9]+)+)", val, re.IGNORECASE)
+        if m:
+            php_version = m.group(1)
+            break
+        if header_name.lower() == "x-php-version":
+            m_ver = re.search(r"([0-9]+(?:\.[0-9]+)+)", val)
+            if m_ver:
+                php_version = m_ver.group(1)
+                break
+
+    # 2. Extract Server banner
+    server_hdr = headers.get("Server")
+    if isinstance(server_hdr, str) and server_hdr.strip():
+        s_clean = server_hdr.strip()
+        # Strip PHP module info from server header if present
+        s_clean = re.sub(r"\s*PHP/[0-9.]+(?:-[^\s]+)?", "", s_clean, flags=re.IGNORECASE).strip()
+        if s_clean:
+            web_server = s_clean
+
+    return php_version, web_server
+
+
 def _probe_nada_url(
     base_url: str,
     clean_host: str,
@@ -871,12 +948,25 @@ def _probe_nada_url(
         "error": None,
         "is_ssl_error": False,
         "latency_seconds": None,
+        "php_version": None,
+        "web_server": None,
     }
+
+    def _inspect_resp_env(resp: requests.Response | None) -> None:
+        if resp is None:
+            return
+        php, srv = extract_server_environment(resp)
+        if php and not res["php_version"]:
+            res["php_version"] = php
+        if srv and not res["web_server"]:
+            res["web_server"] = srv
+
     t0 = time.time()
     try:
         # 1. Probe collections endpoint
         coll_url = f"{base_url}/index.php/api/catalog/collections"
         r_coll = requests.get(coll_url, headers=headers, timeout=timeout)
+        _inspect_resp_env(r_coll)
         if _is_parked_or_domain_sale(clean_host, r_coll):
             res["error"] = "Domain For Sale"
         elif r_coll.status_code == 200:
@@ -913,6 +1003,7 @@ def _probe_nada_url(
             if query:
                 search_url += f"&sk={urllib.parse.quote(query)}"
             r_search = requests.get(search_url, headers=headers, timeout=timeout)
+            _inspect_resp_env(r_search)
             if _is_parked_or_domain_sale(clean_host, r_search):
                 res["error"] = "Domain For Sale"
                 res["is_nada"] = False
@@ -939,6 +1030,7 @@ def _probe_nada_url(
         if not res["is_nada"] and res["error"] != "Domain For Sale":
             v4_url = f"{base_url}/index.php/catalog/export/csv?ps=1"
             r_v4 = requests.get(v4_url, headers=headers, timeout=timeout)
+            _inspect_resp_env(r_v4)
             if _is_parked_or_domain_sale(clean_host, r_v4):
                 res["error"] = "Domain For Sale"
             elif r_v4.status_code == 200:
@@ -955,6 +1047,7 @@ def _probe_nada_url(
             try:
                 cat_url = f"{base_url}/index.php/catalog"
                 r_cat = requests.get(cat_url, headers=headers, timeout=timeout)
+                _inspect_resp_env(r_cat)
                 if r_cat.status_code == 200:
                     html_txt = r_cat.text
                     m_sc = re.search(
@@ -1067,6 +1160,10 @@ def fetch_server_stats(
             if https_stats.get("is_nada") and not https_stats.get("is_ssl_error") and not https_stats.get("error"):
                 stats["https_available"] = True
                 stats["https_upgrade_recommended"] = True
+                if not stats.get("php_version") and https_stats.get("php_version"):
+                    stats["php_version"] = https_stats["php_version"]
+                if not stats.get("web_server") and https_stats.get("web_server"):
+                    stats["web_server"] = https_stats["web_server"]
         except Exception:
             pass
 
@@ -1085,6 +1182,10 @@ def fetch_server_stats(
                 stats["ssl_error"] = stats.get("error")
                 stats["error"] = None
                 stats["scheme"] = "http"
+                if http_stats.get("php_version"):
+                    stats["php_version"] = http_stats["php_version"]
+                if http_stats.get("web_server"):
+                    stats["web_server"] = http_stats["web_server"]
         except Exception:
             pass
 
@@ -1110,6 +1211,9 @@ def display_server_stats(
     cache_ttl_hours: float = 24.0,
     timeout: int = 10,
     repo_root: Path | None = None,
+    show_env: bool = False,
+    sort_by: str = "name",
+    descending: bool | None = None,
 ) -> None:
     """Display live study and collection counts for NADA servers."""
     installations = fetch_nada_installations(
@@ -1130,6 +1234,9 @@ def display_server_stats(
     table.add_column("Repository / Server", style="white")
     table.add_column("Country", style="green", justify="center")
     table.add_column("Ver", style="dim", justify="center")
+    table.add_column("PHP", justify="center")
+    if show_env:
+        table.add_column("Web Server", style="dim", justify="left")
     table.add_column("Studies", justify="right", style="cyan")
     table.add_column("Latency", justify="center")
     table.add_column("Status", justify="left")
@@ -1178,11 +1285,53 @@ def display_server_stats(
             return val
         return str(val)
 
+    clean_sort = (sort_by or "name").strip().lower()
+    if descending is not None:
+        reverse_sort = descending
+    elif clean_sort in ("studies", "count"):
+        reverse_sort = True
+    else:
+        reverse_sort = False
+
+    def _sort_key(item: tuple[ServerInstallation, dict[str, Any]]) -> Any:
+        inst, stat = item
+        if clean_sort in ("name", "server"):
+            return (inst.name or inst.clean_hostname or "").lower()
+        elif clean_sort in ("country", "cc"):
+            return (inst.country_code or "ZZ").lower()
+        elif clean_sort in ("studies", "count"):
+            try:
+                return int(stat.get("studies") or 0)
+            except (ValueError, TypeError):
+                return 0
+        elif clean_sort in ("latency", "lat", "time"):
+            lat = stat.get("latency_seconds")
+            return float(lat) if lat is not None else 9999.0
+        elif clean_sort in ("php", "php_version"):
+            php = stat.get("php_version")
+            if not php:
+                return (0, 0, 0)
+            try:
+                parts = tuple(int(p) for p in str(php).split(".") if p.isdigit())
+                return parts
+            except Exception:
+                return (0, 0, 0)
+        elif clean_sort in ("status", "state"):
+            return str(stat.get("error") or "online").lower()
+        return (inst.name or inst.clean_hostname or "").lower()
+
+    stat_results.sort(key=_sort_key, reverse=reverse_sort)
+
     for inst, stat in stat_results:
         name_disp = inst.name or inst.clean_hostname
         clickable_host = f"[link={inst.url}]{name_disp}[/link]" if inst.url else name_disp
         cc = inst.country_code or "-"
         ver_disp = format_version(stat.get("version") or inst.version)
+        php_disp = format_php_version(
+            stat.get("php_version"),
+            nada_ver=stat.get("version") or inst.version,
+            is_online=bool(stat.get("is_nada")),
+        )
         studies_disp = _format_count(stat.get("studies", 0)) if stat.get("is_nada") else "-"
 
         lat = stat.get("latency_seconds")
@@ -1208,7 +1357,13 @@ def display_server_stats(
         else:
             status_text = "[green]Online[/green]"
 
-        table.add_row(clickable_host, cc, ver_disp, studies_disp, lat_badge, status_text)
+        row_items = [clickable_host, cc, ver_disp, php_disp]
+        if show_env:
+            srv_disp = (stat.get("web_server") or "-") if is_nada else "-"
+            row_items.append(srv_disp)
+        row_items.extend([studies_disp, lat_badge, status_text])
+
+        table.add_row(*row_items)
 
     console.print(table)
 

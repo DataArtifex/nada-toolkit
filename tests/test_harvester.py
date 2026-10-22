@@ -14,9 +14,11 @@ from dartfx.nada.harvester import (
     abbreviate_error,
     analyze_harvest_errors,
     classify_harvest_error,
+    extract_server_environment,
     fetch_active_studies,
     fetch_server_stats,
     format_dataset_url,
+    format_php_version,
     format_response_latency,
     format_version,
     get_dataset_metadata_path,
@@ -646,3 +648,151 @@ def test_server_dir_name_excludes_port(tmp_path: Path) -> None:
     assert harvester.server_dir == tmp_path / "microdata.ubos.org"
     assert ":" not in harvester.server_dir.name
     assert ":" not in harvester.dir_name
+
+
+def test_extract_server_environment() -> None:
+    resp = MagicMock()
+    resp.headers = {
+        "X-Powered-By": "PHP/8.2.14",
+        "Server": "Apache/2.4.52 (Ubuntu)",
+    }
+    php, srv = extract_server_environment(resp)
+    assert php == "8.2.14"
+    assert srv == "Apache/2.4.52 (Ubuntu)"
+
+    # Server header with inline PHP module
+    resp2 = MagicMock()
+    resp2.headers = {
+        "Server": "Apache/2.4.41 (Ubuntu) PHP/7.4.3",
+    }
+    php2, srv2 = extract_server_environment(resp2)
+    assert php2 == "7.4.3"
+    assert srv2 == "Apache/2.4.41 (Ubuntu)"
+
+    # X-PHP-Version header
+    resp3 = MagicMock()
+    resp3.headers = {
+        "X-PHP-Version": "8.1.1",
+        "Server": "nginx/1.22.0",
+    }
+    php3, srv3 = extract_server_environment(resp3)
+    assert php3 == "8.1.1"
+    assert srv3 == "nginx/1.22.0"
+
+    # No PHP detected (e.g. Cloudflare)
+    resp4 = MagicMock()
+    resp4.headers = {
+        "Server": "cloudflare",
+        "X-Powered-By": "ASP.NET",
+    }
+    php4, srv4 = extract_server_environment(resp4)
+    assert php4 is None
+    assert srv4 == "cloudflare"
+
+    # None response
+    php5, srv5 = extract_server_environment(None)
+    assert php5 is None
+    assert srv5 is None
+
+
+def test_format_php_version() -> None:
+    assert "bold red" in format_php_version("7.4.33")
+    assert "bold red" in format_php_version("5.6.40")
+    assert "yellow" in format_php_version("8.0.28")
+    assert "yellow" in format_php_version("8.1.2")
+    assert "green" in format_php_version("8.2.14")
+    assert "green" in format_php_version("8.3.4")
+
+    # Hidden / Unknown handling
+    assert "Hidden" in format_php_version(None, nada_ver="5")
+    assert "~5.x-7.x" in format_php_version(None, nada_ver="4")
+    assert format_php_version(None, is_online=False) == "-"
+
+
+def test_fetch_server_stats_php_version_detected(monkeypatch, tmp_path: Path) -> None:
+    def mock_get(url, **_kwargs):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.headers = {
+            "X-Powered-By": "PHP/8.1.28",
+            "Server": "Apache/2.4.58 (Debian)",
+        }
+        if "api/catalog/search" in url:
+            resp.json = MagicMock(return_value={"result": {"total": 88, "rows": []}})
+        elif "api/catalog/collections" in url:
+            resp.json = MagicMock(return_value={"result": [{"id": 1}]})
+        return resp
+
+    monkeypatch.setattr("requests.get", mock_get)
+    stats = fetch_server_stats("php-detected.nada.org", repo_root=tmp_path, refresh_cache=True)
+    assert stats["is_nada"] is True
+    assert stats["studies"] == 88
+    assert stats["php_version"] == "8.1.28"
+    assert stats["web_server"] == "Apache/2.4.58 (Debian)"
+
+    # Verify cached entry retains environment
+    cache_file = tmp_path / "php-detected.nada.org" / ".stats_cache.json"
+    assert cache_file.exists()
+    cached = json.loads(cache_file.read_text("utf-8"))
+    assert cached["php_version"] == "8.1.28"
+    assert cached["web_server"] == "Apache/2.4.58 (Debian)"
+
+
+def test_display_server_stats_sorting(monkeypatch) -> None:
+    from dartfx.nada.harvester import display_server_stats
+    from dartfx.nada.nada import ServerInstallation
+
+    mock_insts = [
+        ServerInstallation(name="Zambia Stats", hostname="b.zamstats.gov.zm", country_code="ZM"),
+        ServerInstallation(name="Angola Stats", hostname="a.ine.gov.ao", country_code="AO"),
+        ServerInstallation(name="Benin Stats", hostname="c.insae-bj.org", country_code="BJ"),
+    ]
+
+    mock_stats = {
+        "b.zamstats.gov.zm": {"is_nada": True, "studies": 10, "latency_seconds": 1.2, "version": "5"},
+        "a.ine.gov.ao": {"is_nada": True, "studies": 50, "latency_seconds": 4.5, "version": "5"},
+        "c.insae-bj.org": {"is_nada": True, "studies": 5, "latency_seconds": 2.1, "version": "4"},
+    }
+
+    monkeypatch.setattr("dartfx.nada.harvester.fetch_nada_installations", lambda **_kwargs: mock_insts)
+    monkeypatch.setattr(
+        "dartfx.nada.harvester.fetch_server_stats",
+        lambda host, **_kwargs: mock_stats.get(host, {}),
+    )
+
+    rendered_rows: list[list[str]] = []
+
+    def mock_add_row(_self, *args, **_kwargs):
+        if args and isinstance(args[0], str) and "Stats" in args[0]:
+            rendered_rows.append(list(args))
+
+    monkeypatch.setattr("rich.table.Table.add_row", mock_add_row)
+
+    # 1. Default: sort by name (Angola, Benin, Zambia)
+    rendered_rows.clear()
+    display_server_stats()
+    assert len(rendered_rows) == 3
+    assert "Angola Stats" in rendered_rows[0][0]
+    assert "Benin Stats" in rendered_rows[1][0]
+    assert "Zambia Stats" in rendered_rows[2][0]
+
+    # 2. Sort by studies (descending by default: Angola 50, Zambia 10, Benin 5)
+    rendered_rows.clear()
+    display_server_stats(sort_by="studies")
+    assert "Angola Stats" in rendered_rows[0][0]
+    assert "Zambia Stats" in rendered_rows[1][0]
+    assert "Benin Stats" in rendered_rows[2][0]
+
+    # 3. Sort by latency (fastest first: Zambia 1.2, Benin 2.1, Angola 4.5)
+    rendered_rows.clear()
+    display_server_stats(sort_by="latency")
+    assert "Zambia Stats" in rendered_rows[0][0]
+    assert "Benin Stats" in rendered_rows[1][0]
+    assert "Angola Stats" in rendered_rows[2][0]
+
+    # 4. Sort by name descending
+    rendered_rows.clear()
+    display_server_stats(sort_by="name", descending=True)
+    assert "Zambia Stats" in rendered_rows[0][0]
+    assert "Benin Stats" in rendered_rows[1][0]
+    assert "Angola Stats" in rendered_rows[2][0]

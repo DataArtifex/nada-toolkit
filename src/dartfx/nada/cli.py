@@ -187,6 +187,8 @@ def info(
             raise typer.Exit(code=1) from e
 
         # Query total studies count and protocol health
+        from dartfx.nada.harvester import fetch_server_stats, format_php_version
+
         studies_count: int | None = None
         st: dict[str, Any] = {}
         try:
@@ -202,7 +204,6 @@ def info(
                             studies_count = len(res.get("rows", []))
                     elif isinstance(res, list):
                         studies_count = len(res)
-            from dartfx.nada.harvester import fetch_server_stats
 
             host_to_probe = server.url if server.installation.scheme == "http" else server.installation.clean_hostname
             st = fetch_server_stats(host_to_probe, api_token=api_key)
@@ -245,6 +246,14 @@ def info(
         if server.installation.country_code:
             country_display += f" ({server.installation.country_code})"
         table.add_row("Country", country_display)
+
+    if st.get("php_version"):
+        table.add_row(
+            "PHP Runtime",
+            format_php_version(st.get("php_version"), nada_ver=ver, is_online=True),
+        )
+    if st.get("web_server"):
+        table.add_row("Web Server", str(st.get("web_server")))
 
     if st.get("http_fallback"):
         table.add_row(
@@ -589,9 +598,45 @@ def stats(
             help="HTTP request timeout in seconds per server query (default: 10).",
         ),
     ] = 10,
+    show_env: Annotated[
+        bool,
+        typer.Option(
+            "--show-env",
+            "-e",
+            help="Display extended server environment details (web server banner).",
+        ),
+    ] = False,
+    sort: Annotated[
+        str,
+        typer.Option(
+            "--sort",
+            "-S",
+            help="Sort results by field: name (default), country, studies, latency, php, status.",
+        ),
+    ] = "name",
+    desc: Annotated[
+        bool,
+        typer.Option(
+            "--desc",
+            help="Sort in descending order (default for studies).",
+        ),
+    ] = False,
+    asc: Annotated[
+        bool,
+        typer.Option(
+            "--asc",
+            help="Force ascending sort order.",
+        ),
+    ] = False,
 ) -> None:
     """Display live study count, latency, and status for NADA servers."""
     from dartfx.nada.harvester import display_server_stats
+
+    descending: bool | None = None
+    if asc:
+        descending = False
+    elif desc:
+        descending = True
 
     display_server_stats(
         server=server,
@@ -601,6 +646,9 @@ def stats(
         refresh_cache=refresh,
         cache_ttl_hours=float(cache_ttl),
         timeout=timeout,
+        show_env=show_env,
+        sort_by=sort,
+        descending=descending,
     )
 
 

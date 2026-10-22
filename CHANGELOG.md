@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-10-22
+
+### Added
+
+- **PHP Version & Server Environment Detection** (`dartfx-nada stats`, `dartfx-nada info`):
+  - Passive extraction of PHP runtime version and web server banner via `extract_server_environment()` from standard HTTP response headers (`X-Powered-By`, `Server`, `X-PHP-Version`).
+  - Color-coded security lifecycle formatting in `format_php_version()` highlighting active vs. end-of-life runtimes: green for PHP >= 8.2 (supported), yellow for PHP 8.0–8.1 (EOL), bold red for PHP < 8.0 (Critical EOL), and dim red `~5.x-7.x` inference for legacy NADA v4 instances when banners are hidden.
+  - Added dedicated `PHP` column to the `dartfx-nada stats` table display.
+  - Added `--show-env` (`-e`) CLI option to `dartfx-nada stats` to reveal extended server banners (e.g. Apache, Nginx, LiteSpeed, Cloudflare).
+  - Enriched `dartfx-nada info` to display detected PHP Runtime and Web Server.
+  - Cached detected PHP version and web server banner in `.stats_cache.json` for 24-hour persistence.
+- **Default Server Name Sorting & Custom `--sort` Options** (`dartfx-nada stats`):
+  - Results in `dartfx-nada stats` are now sorted alphabetically by server/repository name A–Z by default, resolving arbitrary multithreaded completion order.
+  - Added `--sort` (`-S`) option to sort by `name` (default), `country`, `studies`, `latency`, `php`, or `status`.
+  - Added `--desc` and `--asc` flags to control sort direction, defaulting to descending for study counts and ascending for names/latency.
+
+### Changed
+
+- **ROR Identifier Storage & Dynamic Link Composition**:
+  - Simplified the `ror` property in `data/servers.yaml` to store only the ROR identifier instead of full URLs.
+  - Comprehensive audit and correction of all ROR identifiers against the official ROR API (`api.ror.org`), fixing invalid IDs (e.g. Millennium Challenge Corporation `0539hqx70`, WHO `01f80g185`, World Bank `02md09461`, FAO `00pe0tf51`, UNHCR `0437ej039`, INED `02cnsac56`, FORS `00weppy16`, ILO `03tebpn36`, INE Cabo Verde `04d9bp554`, INSTAT Madagascar `05g23w557`, ZamStats Zambia `05n7sxn21`).
+  - Added verified ROR identifiers for organizations previously missing them (BPS Indonesia `04tq55h40`, INEI Peru `02e838q34`, CAPMAS Egypt `040wqw555`, Registrar General India `05jhdev04`, LISGIS Liberia `0543zsz75`).
+  - Removed invalid/hallucinated ROR placeholders for entities not registered in the official ROR database.
+  - Enhanced `Custodian` model with automatic URL-to-identifier normalization and added computed `ror_url` and `ror_uri` properties to compose the full `https://ror.org/<id>` link dynamically.
+  - Updated `render_servers_markdown` to compose clickable ROR URLs in `data/servers.md`.
+
 ## [0.4.0] - 2026-10-11
 
 ### Added

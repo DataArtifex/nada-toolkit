@@ -31,7 +31,7 @@ def test_render_servers_markdown() -> None:
             "custodian": {
                 "name": "Agency B",
                 "url": "https://agency-b.sn",
-                "ror": "https://ror.org/12345",
+                "ror": "12345",
             },
             "geocoverage": {
                 "level": "national",

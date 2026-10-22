@@ -13,7 +13,7 @@ from typing import Any, Literal
 import requests
 import requests_cache
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .__about__ import __version__
 
@@ -304,6 +304,39 @@ class Custodian(BaseModel):
     name: str | None = None
     url: str | None = None
     ror: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_custodian(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            data = dict(data)
+            if "ror_uri" in data and "ror" not in data:
+                data["ror"] = data.pop("ror_uri")
+            if "home_page" in data and "url" not in data:
+                data["url"] = data.pop("home_page")
+        return data
+
+    @field_validator("ror", mode="before")
+    @classmethod
+    def _normalize_ror(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return None
+            if "ror.org/" in v:
+                return v.rstrip("/").split("ror.org/")[-1].strip()
+            return v.rstrip("/")
+        return v
+
+    @property
+    def ror_url(self) -> str | None:
+        """Compose the full ROR URL from the identifier."""
+        return f"https://ror.org/{self.ror}" if self.ror else None
+
+    @property
+    def ror_uri(self) -> str | None:
+        """Backwards compatibility alias for ror_url."""
+        return self.ror_url
 
 
 class GeoCoverage(BaseModel):

@@ -118,7 +118,7 @@ def render_servers_markdown(servers_data: list[dict[str, Any]]) -> str:
             else:
                 cust_text = c_name
             if inst.custodian.ror:
-                cust_text += f" ([ROR]({inst.custodian.ror}))"
+                cust_text += f" ([ROR]({inst.custodian.ror_url}))"
         else:
             cust_text = "—"
 

@@ -7,6 +7,7 @@ from typer.testing import CliRunner
 
 from dartfx.nada.cli import _normalize_smart_dashes, app
 from dartfx.nada.nada import (
+    Custodian,
     ServerInstallation,
     fetch_nada_installations,
     get_iso2_code,
@@ -112,17 +113,25 @@ def test_cli_stats_command_flags() -> None:
     assert "--cache-ttl" in clean_output
     assert "--timeout" in clean_output
     assert "-t" in clean_output
+    assert "--show-env" in clean_output
+    assert "-e" in clean_output
+    assert "--sort" in clean_output
+    assert "-S" in clean_output
+    assert "--desc" in clean_output
+    assert "--asc" in clean_output
 
 
 def test_cli_version_flag() -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["--version"])
+    from dartfx.nada.__about__ import __version__
+
     assert result.exit_code == 0
-    assert "0.4.0" in result.stdout
+    assert __version__ in result.stdout
 
     result_short = runner.invoke(app, ["-V"])
     assert result_short.exit_code == 0
-    assert "0.4.0" in result_short.stdout
+    assert __version__ in result_short.stdout
 
 
 def test_load_bundled_servers_yaml() -> None:
@@ -193,7 +202,7 @@ def test_server_installation_custodian_and_geocoverage() -> None:
         custodian={
             "name": "World Bank Group",
             "home_page": "https://www.worldbank.org",
-            "ror_uri": "https://ror.org/01pnzbv35",
+            "ror_uri": "https://ror.org/02md09461",
         },
         geocoverage={
             "level": "global",
@@ -205,12 +214,25 @@ def test_server_installation_custodian_and_geocoverage() -> None:
     assert inst.custodian is not None
     assert inst.custodian.name == "World Bank Group"
     assert inst.custodian.url == "https://www.worldbank.org"
-    assert inst.custodian.ror == "https://ror.org/01pnzbv35"
+    assert inst.custodian.ror == "02md09461"
+    assert inst.custodian.ror_url == "https://ror.org/02md09461"
+    assert inst.custodian.ror_uri == "https://ror.org/02md09461"
     assert inst.geocoverage is not None
     assert inst.geocoverage.level == "global"
     assert inst.geocoverage.geonames == ["https://www.geonames.org/6255147/"]
     assert inst.geocoverage.geonames_uri == "https://www.geonames.org/6255147/"
     assert inst.domains == ["socio-economic", "living-standards"]
+
+    # Test direct Custodian identifier and URL composition
+    cust = Custodian(name="MCC", url="https://www.mcc.gov", ror="0539hqx70")
+    assert cust.ror == "0539hqx70"
+    assert cust.ror_url == "https://ror.org/0539hqx70"
+    assert cust.ror_uri == "https://ror.org/0539hqx70"
+
+    # Test full URL normalization
+    cust_normalized = Custodian(name="MCC", ror="https://ror.org/0539hqx70/")
+    assert cust_normalized.ror == "0539hqx70"
+    assert cust_normalized.ror_url == "https://ror.org/0539hqx70"
 
     # Test single geonames_uri string backwards-compatibility input
     inst_compat = ServerInstallation(

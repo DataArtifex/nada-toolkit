@@ -13,7 +13,7 @@ The toolkit is designed to be a high-level, type-safe wrapper around the IHSN NA
     - Manages `requests-cache` sessions for network performance and cache transparency.
     - Automatic version detection (`detect_server_version`) identifying NADA v5 (`/api/`) vs v4 (`/index.php/api/`) endpoint prefixes.
     - Provides high-level methods for Catalog Search, Collection browsing, Country/Topic codes, and Study exports (`ddi`, `json`, `resources`, `croissant`, `schema`).
-2.  **`ServerInstallation`**, **`Custodian`**, & **`GeoCoverage`**: Pydantic models representing a NADA repository installation with rich metadata (name, hostname, ISO 3166-1 alpha-2 `country_code`, custodian details, geographic coverage with `geonames` URI lists, topical domains, etc.) and helper properties (`clean_hostname`, `url`).
+2.  **`ServerInstallation`**, **`Custodian`**, & **`GeoCoverage`**: Pydantic models representing a NADA repository installation with rich metadata (name, hostname, ISO 3166-1 alpha-2 `country_code`, custodian details storing ROR identifiers with dynamic link composition via `ror_url`/`ror_uri`, geographic coverage with `geonames` URI lists, topical domains, etc.) and helper properties (`clean_hostname`, `url`).
 3.  **`SearchParameters`**: A comprehensive Pydantic model validating NADA Catalog Search API query parameters (pagination, keyword searches, collection/country/topic filters, date ranges, and sorting).
 4.  **`fetch_nada_installations` & Registry Engine**: The centralized registry subsystem for discovering worldwide NADA instances.
     - Backed by a community-maintained `data/servers.yaml` file in the project repository and bundled package resources (`load_bundled_servers_yaml`).
@@ -36,6 +36,8 @@ The toolkit is designed to be a high-level, type-safe wrapper around the IHSN NA
     - **Performance Tier Rating Engine** (`format_response_latency`): Classifies response times into semantic color-coded tiers (`⚡ <3s` Fast, `🟢 3–8s` Normal, `🟡 8–15s` Moderate, `🔴 >15s` Degraded, `🔒` Protected, `❌` Failed).
     - **Deep SSL/TLS Diagnostics** (`classify_harvest_error`, `abbreviate_error`): Inspects peer certificates and verification error chains to isolate incomplete intermediate CA chains, certificate expirations, hostname mismatches, and self-signed certificates.
     - **Parked & Non-NADA Server Filtering**: Distinguishes valid NADA installations from domain registrars, domain-for-sale parking pages, and unrelated web portals returning HTTP 200 HTML.
+    - **PHP Runtime & Server Environment Detection** (`extract_server_environment`, `format_php_version`): Passively captures PHP runtime versions from `X-Powered-By`, `Server`, and `X-PHP-Version` headers, highlighting supported vs. end-of-life runtimes for vulnerability risk assessment, with extended server banner support via `--show-env` / `-e`.
+    - **Deterministic Output Ordering & Flexible Sorting**: Sorts results alphabetically by server/repository name A–Z by default, resolving thread completion randomness. Supports custom sorting via `--sort` / `-S` (by `name`, `country`, `studies`, `latency`, `php`, `status`) with intuitive direction handling (`--desc` / `--asc`).
     - **24-Hour Persistence & Auto-Invalidation**: Stores metrics in `.stats_cache.json` under the server directory (or `.cache/`) for sub-second CLI re-rendering. Automatically invalidates and re-queries suspicious zero-study cache records.
 
 ### Server Status & Health Diagnostics Taxonomy
