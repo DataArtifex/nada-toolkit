@@ -179,7 +179,7 @@ def test_server_installation_url_and_scheme_normalization() -> None:
     )
     assert inst_http.scheme == "http"
     assert inst_http.clean_hostname == "custom.nada.org"
-    assert inst_http.url == "http://custom.nada.org"
+    assert inst_http.url == "http://custom.nada.org/subpath"
     assert inst_http.country_code == "SN"
 
 

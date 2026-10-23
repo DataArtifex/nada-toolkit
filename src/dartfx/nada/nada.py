@@ -463,6 +463,8 @@ class ServerInstallation(BaseModel):
     @property
     def url(self) -> str:
         """Return URL for the installation."""
+        if self.catalog_url:
+            return self.catalog_url.rstrip("/")
         if not self.clean_hostname:
             return ""
         return f"{self.scheme}://{self.clean_hostname}"

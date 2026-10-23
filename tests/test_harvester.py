@@ -757,7 +757,7 @@ def test_display_server_stats_sorting(monkeypatch) -> None:
     monkeypatch.setattr("dartfx.nada.harvester.fetch_nada_installations", lambda **_kwargs: mock_insts)
     monkeypatch.setattr(
         "dartfx.nada.harvester.fetch_server_stats",
-        lambda host, **_kwargs: mock_stats.get(host, {}),
+        lambda host, **_kwargs: next((v for k, v in mock_stats.items() if k in host), {}),
     )
 
     rendered_rows: list[list[str]] = []

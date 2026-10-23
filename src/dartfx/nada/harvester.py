@@ -152,6 +152,30 @@ def get_server_dir_name(host: str) -> str:
     return clean
 
 
+def parse_server_url(host: str) -> tuple[str, str, str, str]:
+    """Parse server host/URL string into (base_url, clean_host, scheme, subpath).
+
+    Preserves schemes (http vs https) and subpaths (e.g. '/nada', '/surveydata').
+    """
+    raw = host.strip()
+    is_explicit_http = raw.lower().startswith("http://")
+    is_explicit_https = raw.lower().startswith("https://")
+
+    if not is_explicit_http and not is_explicit_https:
+        raw = f"https://{raw}"
+
+    parsed = urllib.parse.urlparse(raw)
+    clean_host = parsed.hostname or (parsed.netloc.split(":")[0] if ":" in parsed.netloc else parsed.netloc)
+    port_suffix = f":{parsed.port}" if parsed.port else ""
+    subpath = parsed.path.rstrip("/")
+    if subpath == "/":
+        subpath = ""
+
+    scheme = "http" if is_explicit_http else (parsed.scheme or "https")
+    base_url = f"{scheme}://{clean_host}{port_suffix}{subpath}"
+    return base_url, clean_host, scheme, subpath
+
+
 def get_dataset_metadata_path(server_dir: Path, pid: str, ext: str = ".ddi.xml") -> tuple[Path, str]:
     """Get study directory and metadata file path inside a dedicated metadata/ folder.
     Returns (full_file_path, relative_path_str).
@@ -1118,10 +1142,10 @@ def fetch_server_stats(
     cache_ttl_hours: float = 24.0,
 ) -> dict[str, Any]:
     """Retrieve counts of studies, collections, version and latency for a NADA server."""
-    is_explicit_http = host.lower().startswith("http://")
-    clean_host = host.replace("https://", "").replace("http://", "").strip("/")
-    if "/" in clean_host:
-        clean_host = clean_host.split("/", 1)[0]
+    base_url, clean_host, primary_scheme, subpath = parse_server_url(host)
+    parsed = urllib.parse.urlparse(base_url)
+    port_suffix = f":{parsed.port}" if parsed.port else ""
+
     headers = get_request_headers(host=clean_host, api_token=api_token, repo_root=repo_root)
 
     target_repo = repo_root or Path.cwd() / ".cache"
@@ -1145,8 +1169,7 @@ def fetch_server_stats(
         except Exception:
             pass
 
-    primary_scheme = "http" if is_explicit_http else "https"
-    primary_url = f"{primary_scheme}://{clean_host}"
+    primary_url = base_url
 
     stats = _probe_nada_url(primary_url, clean_host, headers, timeout, query=query)
     stats["server"] = clean_host
@@ -1155,7 +1178,7 @@ def fetch_server_stats(
     # Enhancement 1: If server is on HTTP, check if HTTPS is available and recommend switching if fully functional
     if primary_scheme == "http" and stats.get("is_nada"):
         try:
-            https_url = f"https://{clean_host}"
+            https_url = f"https://{clean_host}{port_suffix}{subpath}"
             https_stats = _probe_nada_url(https_url, clean_host, headers, timeout=min(5, timeout), query=query)
             if https_stats.get("is_nada") and not https_stats.get("is_ssl_error") and not https_stats.get("error"):
                 stats["https_available"] = True
@@ -1170,7 +1193,7 @@ def fetch_server_stats(
     # Enhancement 2: If primary was HTTPS and SSL failed, check if we can fall back to HTTP
     if primary_scheme == "https" and stats.get("is_ssl_error"):
         try:
-            http_url = f"http://{clean_host}"
+            http_url = f"http://{clean_host}{port_suffix}{subpath}"
             http_stats = _probe_nada_url(http_url, clean_host, headers, timeout=timeout, query=query)
             if http_stats.get("is_nada"):
                 stats["is_nada"] = True
@@ -1242,7 +1265,7 @@ def display_server_stats(
     table.add_column("Status", justify="left")
 
     def _query_stat(inst: ServerInstallation) -> tuple[ServerInstallation, dict[str, Any]]:
-        host_to_query = inst.url if inst.scheme == "http" else inst.clean_hostname
+        host_to_query = inst.url or inst.clean_hostname
         s = fetch_server_stats(
             host=host_to_query,
             query=query,
@@ -1383,10 +1406,7 @@ def fetch_active_studies(
     catalog_progress_callback=None,
 ) -> dict[str, dict[str, Any]]:
     """Retrieve catalog studies for a NADA server with 24h caching."""
-    clean_host = host.replace("https://", "").replace("http://", "").strip("/")
-    if "/" in clean_host:
-        clean_host = clean_host.split("/", 1)[0]
-    base_url = f"https://{clean_host}"
+    base_url, clean_host, _scheme, _subpath = parse_server_url(host)
     headers = get_request_headers(host=clean_host, api_token=api_token)
 
     cache_file = (server_dir / ".catalog_cache.json") if server_dir else None
@@ -1604,10 +1624,7 @@ def fetch_study_record(
     """Fetch study metadata in the specified format (ddi, json, resources, croissant, schema).
     Returns (content_bytes, file_extension, error_reason).
     """
-    clean_host = host.replace("https://", "").replace("http://", "").strip("/")
-    if "/" in clean_host:
-        clean_host = clean_host.split("/", 1)[0]
-    base_url = f"https://{clean_host}"
+    base_url, clean_host, _scheme, _subpath = parse_server_url(host)
     fmt = metadata_format.strip().lower()
     headers = get_request_headers(host=clean_host, api_token=api_token)
     encoded_idno = urllib.parse.quote(idno)
