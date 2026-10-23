@@ -372,11 +372,12 @@ class GeoCoverage(BaseModel):
 class ServerInstallation(BaseModel):
     """Represents a NADA installation with metadata and helper properties."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     name: str | None = None
     description: str | None = None
     hostname: str | None = None
+    catalog_url: str | None = Field(default=None, alias="url")
     country: str | None = None
     country_code: str | None = None
     continent: str | None = None
@@ -399,7 +400,8 @@ class ServerInstallation(BaseModel):
             data = dict(data)
             url = data.get("url") or data.get("home")
             if url and not data.get("hostname"):
-                data["hostname"] = url
+                parsed_host = urllib.parse.urlparse(str(url)).hostname
+                data["hostname"] = parsed_host or str(url)
             if url and str(url).lower().startswith("http://") and "scheme" not in data:
                 data["scheme"] = "http"
             # Normalize custodian dict fields (home_page -> url, ror_uri -> ror)
@@ -431,6 +433,9 @@ class ServerInstallation(BaseModel):
             self.country_code = get_iso2_code(self.country)
         elif not self.country and self.country_code:
             self.country = ISO2_TO_COUNTRY.get(self.country_code.strip().upper())
+
+        if self.catalog_url and self.catalog_url.lower().startswith("http://"):
+            self.scheme = "http"
 
         if self.hostname:
             if self.hostname.lower().startswith("http://"):

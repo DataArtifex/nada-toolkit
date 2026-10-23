@@ -17,7 +17,6 @@
 #   domains: (Optional) List of domain / topical coverage areas (e.g. official-statistics, health)
 
 - name: Direction Général de la Statistique et la Comptabilité Nationale
-  hostname: 160.242.193.218
   url: http://160.242.193.218/nada
   country_code: TG
   custodian:
@@ -34,7 +33,6 @@
   - socio-economic
   - census
 - name: Agence Nationale de la Statistique et de la Démographie (ANSD)
-  hostname: anads.ansd.sn
   url: https://anads.ansd.sn
   country_code: SN
   custodian:
@@ -50,7 +48,6 @@
   - socio-economic
   - census
 - name: Instituto Nacional de Estadística (INE)
-  hostname: anda.ine.gob.bo
   url: https://anda.ine.gob.bo
   country_code: BO
   geocoverage:
@@ -63,7 +60,6 @@
   - socio-economic
   - census
 - name: Instituto Nacional de Estadistica y Censos (INEC)
-  hostname: anda.inec.gob.ec
   url: https://anda.inec.gob.ec/anda
   country_code: EC
   geocoverage:
@@ -76,7 +72,6 @@
   - socio-economic
   - census
 - name: Oficina Nacional de Estadistica (ONE)
-  hostname: anda.one.gob.do
   url: https://anda.one.gob.do
   country_code: DO
   geocoverage:
@@ -89,7 +84,6 @@
   - socio-economic
   - census
 - name: Instituto Nacional de Estatística (INE)
-  hostname: andine.ine.gov.ao
   url: https://andine.ine.gov.ao/nada
   country_code: AO
   geocoverage:
@@ -102,7 +96,6 @@
   - socio-economic
   - census
 - name: Multi-Country Studies Data Archive (WHO)
-  hostname: apps.who.int
   url: https://apps.who.int/healthinfo/systems/surveydata
   country_code: null
   custodian:
@@ -118,7 +111,6 @@
   - epidemiology
   - public-health
 - name: Statistics Botswana
-  hostname: botswana.microdatahub.com
   url: http://botswana.microdatahub.com
   country_code: BW
   geocoverage:
@@ -131,7 +123,6 @@
   - socio-economic
   - census
 - name: International Household Survey Network (IHSN)
-  hostname: catalog.ihsn.org
   url: https://catalog.ihsn.org
   country_code: null
   custodian:
@@ -146,7 +137,6 @@
   - socio-economic
   - census
 - name: Census Digital Library
-  hostname: censusindia.gov.in
   url: https://censusindia.gov.in/nada
   country_code: IN
   custodian:
@@ -163,7 +153,6 @@
   - socio-economic
   - census
 - name: Central Data Catalog
-  hostname: censusinfo.capmas.gov.eg
   url: https://censusinfo.capmas.gov.eg/metadata-en-v4.2
   country_code: EG
   custodian:
@@ -180,7 +169,6 @@
   - socio-economic
   - census
 - name: IFAKARA Health Institute
-  hostname: data.ihi.or.tz
   url: https://data.ihi.or.tz
   country_code: TZ
   geocoverage:
@@ -193,7 +181,6 @@
   - biomedical
   - epidemiology
 - name: Institut national d'études démographiques (INED)
-  hostname: data.ined.fr
   url: https://data.ined.fr
   country_code: FR
   custodian:
@@ -210,7 +197,6 @@
   - population-studies
   - fertility-mortality
 - name: Swiss national science foundation (FORS)
-  hostname: devisu.forscenter.ch
   url: https://devisu.forscenter.ch
   country_code: CH
   custodian:
@@ -227,7 +213,6 @@
   - politics
   - surveys
 - name: INEI Microdatos Peru
-  hostname: iinei.inei.gob.pe
   url: https://iinei.inei.gob.pe/microdatos
   country_code: PE
   custodian:
@@ -244,7 +229,6 @@
   - socio-economic
   - census
 - name: INDEPTH Network
-  hostname: indepth-ishare.org
   url: https://indepth-ishare.org
   country_code: null
   geocoverage:
@@ -257,7 +241,6 @@
   - socio-economic
   - census
 - name: Statistics South Africa (Stats SA)
-  hostname: interactive.statssa.gov.za
   url: https://interactive.statssa.gov.za
   country_code: ZA
   custodian:
@@ -273,7 +256,6 @@
   - socio-economic
   - census
 - name: Millennium Challenge Corporation
-  hostname: mcc.icpsr.umich.edu
   url: https://mcc.icpsr.umich.edu/evaluations/index.php/catalog
   country_code: US
   custodian:
@@ -290,7 +272,6 @@
   - socio-economic
   - census
 - name: Statistical Committee of the Republic of Armenia
-  hostname: microdata.armstat.am
   url: http://microdata.armstat.am
   country_code: AM
   geocoverage:
@@ -303,7 +284,6 @@
   - socio-economic
   - census
 - name: Badan Pusat Statistik (BPS)
-  hostname: microdata.bps.go.id
   url: https://microdata.bps.go.id/mikrodata
   country_code: ID
   geocoverage:
@@ -316,7 +296,6 @@
   - socio-economic
   - census
 - name: Ethiopian Statistics Service
-  hostname: microdata.ess.gov.et
   url: https://microdata.ess.gov.et
   country_code: ET
   custodian:
@@ -332,7 +311,6 @@
   - socio-economic
   - census
 - name: Food and Agriculture Organization (FAO)
-  hostname: microdata.fao.org
   url: https://microdata.fao.org
   country_code: null
   custodian:
@@ -348,7 +326,6 @@
   - food-security
   - rural-development
 - name: Gambia Bureau of Statistics (GBoS)
-  hostname: microdata.gbosdata.org
   url: https://microdata.gbosdata.org
   country_code: GM
   custodian:
@@ -365,7 +342,6 @@
   - census
   - agriculture
 - name: Ministry of Statistics and Programme Implementation (MOSPI)
-  hostname: microdata.gov.in
   url: http://microdata.gov.in/nada43
   country_code: IN
   geocoverage:
@@ -378,7 +354,6 @@
   - socio-economic
   - census
 - name: Institut National de la Statistique et de la Démographie (INSD)
-  hostname: microdata.insd.bf
   url: https://microdata.insd.bf
   country_code: BF
   custodian:
@@ -394,7 +369,6 @@
   - socio-economic
   - census
 - name: Institut National de la Statistique (INS)
-  hostname: microdata.insguinee.org
   url: https://microdata.insguinee.org
   country_code: GN
   custodian:
@@ -411,7 +385,6 @@
   - census
   - demography
 - name: Institut National de la Statistique (INSTAT)
-  hostname: microdata.instat.ml
   url: https://microdata.instat.ml
   country_code: ML
   custodian:
@@ -427,7 +400,6 @@
   - socio-economic
   - census
 - name: Liberia Institute of Statistics & Geo-Information Services (LISGIS)
-  hostname: microdata.lisgislr.org
   url: https://microdata.lisgislr.org
   country_code: LR
   custodian:
@@ -444,7 +416,6 @@
   - socio-economic
   - census
 - name: National Bureau of Statistics (NBS)
-  hostname: microdata.nbs.go.tz
   url: https://microdata.nbs.go.tz
   country_code: TZ
   custodian:
@@ -460,7 +431,6 @@
   - socio-economic
   - census
 - name: National Bureau of Statistics (NBS)
-  hostname: microdata.nigerianstat.gov.ng
   url: https://microdata.nigerianstat.gov.ng
   country_code: NG
   custodian:
@@ -476,7 +446,6 @@
   - socio-economic
   - census
 - name: National Institute of Statistics (NIS)
-  hostname: microdata.nis.gov.kh
   url: https://microdata.nis.gov.kh
   country_code: KH
   geocoverage:
@@ -489,7 +458,6 @@
   - socio-economic
   - census
 - name: National Statistics Office (NSO)
-  hostname: microdata.nsonepal.gov.np
   url: https://microdata.nsonepal.gov.np
   country_code: NP
   custodian:
@@ -505,7 +473,6 @@
   - socio-economic
   - census
 - name: Pacific Data Hub
-  hostname: microdata.pacificdata.org
   url: https://microdata.pacificdata.org
   country_code: VU
   geocoverage:
@@ -518,7 +485,6 @@
   - socio-economic
   - census
 - name: National Institute of Statistics Rwanda (NISR)
-  hostname: microdata.statistics.gov.rw
   url: http://microdata.statistics.gov.rw
   country_code: RW
   geocoverage:
@@ -531,7 +497,6 @@
   - socio-economic
   - census
 - name: Statistics Sierra Leone
-  hostname: microdata.statistics.sl
   url: https://microdata.statistics.sl
   country_code: SL
   custodian:
@@ -547,7 +512,6 @@
   - socio-economic
   - census
 - name: Ghana Statistical Service (GSS)
-  hostname: microdata.statsghana.gov.gh
   url: https://microdata.statsghana.gov.gh
   country_code: GH
   custodian:
@@ -564,7 +528,6 @@
   - census
   - demography
 - name: Uganda Bureau of Statistics (UBoS)
-  hostname: microdata.ubos.org
   url: https://microdata.ubos.org:7070
   country_code: UG
   geocoverage:
@@ -577,7 +540,6 @@
   - socio-economic
   - census
 - name: UNHCR Microdata Library
-  hostname: microdata.unhcr.org
   url: https://microdata.unhcr.org
   country_code: null
   custodian:
@@ -594,7 +556,6 @@
   - humanitarian
   - migration
 - name: The World Bank - Microdata Library
-  hostname: microdata.worldbank.org
   url: https://microdata.worldbank.org
   country_code: null
   custodian:
@@ -610,7 +571,6 @@
   - socio-economic
   - census
 - name: African Population and Health Research Center, Nairobi
-  hostname: microdataportal.aphrc.org
   url: http://microdataportal.aphrc.org
   country_code: KE
   geocoverage:
@@ -623,7 +583,6 @@
   - socio-economic
   - census
 - name: Instituto Nacional de Estatistica (INE)
-  hostname: mozdata.microdatahub.com
   url: http://mozdata.microdatahub.com
   country_code: MZ
   geocoverage:
@@ -636,7 +595,6 @@
   - socio-economic
   - census
 - name: Agence Nationale de la Statistique (ANStat)
-  hostname: nada.anstat.ci
   url: https://nada.anstat.ci
   country_code: CI
   custodian:
@@ -652,7 +610,6 @@
   - socio-economic
   - census
 - name: Central Bank of Nigeria (CBN)
-  hostname: nada.cbn.gov.ng
   url: https://nada.cbn.gov.ng
   country_code: NG
   custodian:
@@ -668,7 +625,6 @@
   - banking
   - finance
 - name: Institut National de la Statistique (INS)
-  hostname: nada.ins.tn
   url: http://nada.ins.tn
   country_code: TN
   geocoverage:
@@ -681,7 +637,6 @@
   - socio-economic
   - census
 - name: Institut National de la Statistique et de la Démographie (INSTAD)
-  hostname: nada.instad.bj
   url: https://nada.instad.bj
   country_code: BJ
   custodian:
@@ -698,7 +653,6 @@
   - census
   - demography
 - name: Institut National de la Statistique (INSTAT)
-  hostname: nada.instat.mg
   url: https://nada.instat.mg
   country_code: MG
   custodian:
@@ -716,7 +670,6 @@
   - census
   - demography
 - name: Namibia Statistics Agency (NSA)
-  hostname: nada.nsa.org.na
   url: https://nada.nsa.org.na
   country_code: NA
   geocoverage:
@@ -729,7 +682,6 @@
   - socio-economic
   - census
 - name: Institut National de la Statistique (INS)
-  hostname: nada.stat.cm
   url: http://nada.stat.cm
   country_code: CM
   geocoverage:
@@ -742,7 +694,6 @@
   - socio-economic
   - census
 - name: Department of Census and Statistics (DCS)
-  hostname: nada.statistics.gov.lk
   url: https://nada.statistics.gov.lk
   country_code: LK
   geocoverage:
@@ -755,7 +706,6 @@
   - socio-economic
   - census
 - name: Central Statistics Office (CSO)
-  hostname: nada.statsmauritius.govmu.org
   url: https://nada.statsmauritius.govmu.org
   country_code: MU
   geocoverage:
@@ -768,7 +718,6 @@
   - socio-economic
   - census
 - name: Uganda Bureau of Statistics (UBOS)
-  hostname: nada.ubos.org
   url: https://nada.ubos.org
   country_code: UG
   custodian:
@@ -784,7 +733,6 @@
   - socio-economic
   - census
 - name: University of Cape Coast (UCC)
-  hostname: nada.ucc.edu.gh
   url: https://nada.ucc.edu.gh
   country_code: GH
   geocoverage:
@@ -796,7 +744,6 @@
   - education
   - socio-economic
 - name: Centre for Sustainable Development (CESDEV)
-  hostname: nada.ui.edu.ng
   url: http://nada.ui.edu.ng
   country_code: NG
   geocoverage:
@@ -809,7 +756,6 @@
   - socio-economic
   - census
 - name: Zambia Statistics Agency (ZamStats)
-  hostname: nada.zamstats.gov.zm
   url: https://nada.zamstats.gov.zm
   country_code: ZM
   custodian:
@@ -827,7 +773,6 @@
   - census
   - living-standards
 - name: National Statistics Office (NSO)
-  hostname: psada.psa.gov.ph
   url: https://psada.psa.gov.ph
   country_code: PH
   geocoverage:
@@ -840,7 +785,6 @@
   - socio-economic
   - census
 - name: BPS Statistics Indonesia (Sirusa)
-  hostname: sirusa.bps.go.id
   url: https://sirusa.bps.go.id
   country_code: ID
   custodian:
@@ -857,7 +801,6 @@
   - socio-economic
   - census
 - name: Instituto Nacional de Estadística y Censos (INEC)
-  hostname: sistemas.inec.cr
   url: http://sistemas.inec.cr/pad5
   country_code: CR
   geocoverage:
@@ -870,7 +813,6 @@
   - socio-economic
   - census
 - name: Kenya National Bureau of Statistics (KNBS)
-  hostname: statistics.knbs.or.ke
   url: https://statistics.knbs.or.ke/nada
   country_code: KE
   geocoverage:
@@ -883,7 +825,6 @@
   - socio-economic
   - census
 - name: National Statistical Office (NSO)
-  hostname: web.nso.mn
   url: http://web.nso.mn/nada
   country_code: MN
   geocoverage:
@@ -896,7 +837,6 @@
   - socio-economic
   - census
 - name: National Statistical Office (NSO)
-  hostname: web.nso.mn
   url: http://web.nso.mn/nadamn
   country_code: MN
   geocoverage:
@@ -909,7 +849,6 @@
   - socio-economic
   - census
 - name: Instituto Nacional de Estadística e Informática (INEI)
-  hostname: webinei.inei.gob.pe
   url: http://webinei.inei.gob.pe/anda_inei
   country_code: PE
   geocoverage:
@@ -922,7 +861,6 @@
   - socio-economic
   - census
 - name: Data First
-  hostname: www.datafirst.uct.ac.za
   url: https://www.datafirst.uct.ac.za/dataportal
   country_code: null
   custodian:
@@ -939,7 +877,6 @@
   - socio-economic
   - census
 - name: Economics Research Forum
-  hostname: www.erfdataportal.com
   url: http://www.erfdataportal.com
   country_code: null
   geocoverage:
@@ -951,7 +888,6 @@
   - socio-economic
   - census
 - name: ILO Survey Catalogue
-  hostname: www.ilo.org
   url: https://www.ilo.org/surveyLib
   country_code: null
   custodian:
@@ -967,7 +903,6 @@
   - employment
   - social-security
 - name: ILO Central Microdata Repository
-  hostname: www.ilo.org
   url: http://www.ilo.org/surveydata
   country_code: CH
   custodian:
@@ -983,7 +918,6 @@
   - employment
   - social-security
 - name: Instituto Nacional de Estatística (INE)
-  hostname: www.ine.cv
   url: https://www.ine.cv/dircaboverde
   country_code: CV
   custodian:
@@ -1001,7 +935,6 @@
   - census
   - demography
 - name: Instituto Nacional de Estadística (INE)
-  hostname: www.ine.gub.uy
   url: http://www.ine.gub.uy:82/Anda4
   country_code: UY
   geocoverage:
@@ -1014,7 +947,6 @@
   - socio-economic
   - census
 - name: Instituto Nacional de Estadística y Geografía (INEGI)
-  hostname: www.inegi.org.mx
   url: http://www.inegi.org.mx/rnm
   country_code: MX
   geocoverage:
@@ -1027,7 +959,6 @@
   - socio-economic
   - census
 - name: Institut de Statistiques et d’Etudes Economiques du Burundi
-  hostname: www.isteebu.bi
   url: http://www.isteebu.bi/nada
   country_code: BI
   geocoverage:
@@ -1040,7 +971,6 @@
   - socio-economic
   - census
 - name: Zimbabwe National Statistic Agency (ZIMSTAT)
-  hostname: www.nada.zimstat.co.zw
   url: http://www.nada.zimstat.co.zw/nada
   country_code: ZW
   geocoverage:
@@ -1053,7 +983,6 @@
   - socio-economic
   - census
 - name: National Bureau of Statistics (NBS)
-  hostname: www.nsb.gov.bt
   url: http://www.nsb.gov.bt/nada4
   country_code: BT
   geocoverage:
@@ -1066,7 +995,6 @@
   - socio-economic
   - census
 - name: Palestine Central Bureau of Statistics (Arabic Language)
-  hostname: www.pcbs.gov.ps
   url: http://www.pcbs.gov.ps/PCBS-Metadata-ar-v4.3
   country_code: PS
   geocoverage:
@@ -1079,7 +1007,6 @@
   - socio-economic
   - census
 - name: Palestinian Central Bureau of Statistics (English Language)
-  hostname: www.pcbs.gov.ps
   url: http://www.pcbs.gov.ps/PCBS-Metadata-en-v4.3
   country_code: PS
   geocoverage:
@@ -1092,7 +1019,6 @@
   - socio-economic
   - census
 - name: Instituto Nacional de Estatística (INE)
-  hostname: www.stat-guinebissau.com
   url: http://www.stat-guinebissau.com/nada41
   country_code: GW
   geocoverage:
@@ -1105,7 +1031,6 @@
   - socio-economic
   - census
 - name: Institut National de la Statistique (INS)
-  hostname: www.stat-niger.org
   url: https://www.stat-niger.org/anado
   country_code: NE
   geocoverage:
@@ -1118,7 +1043,6 @@
   - socio-economic
   - census
 - name: Central Statistics Office
-  hostname: yemen-cso.microdatahub.com
   url: http://yemen-cso.microdatahub.com
   country_code: YE
   geocoverage:

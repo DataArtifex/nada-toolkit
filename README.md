@@ -326,8 +326,7 @@ Each entry in [`data/servers.yaml`](data/servers.yaml) adheres to the following 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `name` | `string` | **Yes** | Human-readable name of the catalog or repository. |
-| `hostname` | `string` | **Yes** | Server hostname domain (e.g. `microdata.worldbank.org`). |
-| `url` | `string` | **Yes** | Full web catalog endpoint URL. |
+| `url` | `string` | **Yes** | Full web catalog endpoint URL (hostname is derived automatically). |
 | `country_code` | `string` | Optional | Two-letter ISO 3166-1 alpha-2 code (e.g. `SN`, `UG`, `US`), or null for global/international agencies. |
 | `custodian` | `object` | Optional | Custodian organization details (`name`, `url`, `ror` identifier). |
 | `geocoverage` | `object` | Optional | Scope (`level`: `global` \| `regional` \| `national` \| `subnational` \| `city` \| `other`), textual `description`, and `geonames` list of URIs. |
@@ -337,7 +336,6 @@ Each entry in [`data/servers.yaml`](data/servers.yaml) adheres to the following 
 
 ```yaml
 - name: Millennium Challenge Corporation
-  hostname: mcc.icpsr.umich.edu
   url: https://mcc.icpsr.umich.edu/evaluations/index.php/catalog
   country_code: US
   custodian:

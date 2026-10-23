@@ -137,12 +137,12 @@ def test_cli_version_flag() -> None:
 def test_load_bundled_servers_yaml() -> None:
     servers = load_bundled_servers_yaml()
     assert len(servers) >= 60
-    wb = next((s for s in servers if "worldbank" in s.get("hostname", "")), None)
+    wb = next((s for s in servers if "worldbank" in (s.get("url", "") or s.get("hostname", ""))), None)
     assert wb is not None
     assert "World Bank" in wb["name"]
     assert wb.get("geocoverage", {}).get("level") == "global"
 
-    sn = next((s for s in servers if "ansd.sn" in s.get("hostname", "")), None)
+    sn = next((s for s in servers if "ansd.sn" in (s.get("url", "") or s.get("hostname", ""))), None)
     assert sn is not None
     assert sn["country_code"] == "SN"
     assert sn.get("geocoverage", {}).get("level") == "national"
@@ -255,16 +255,17 @@ def test_agris_monitor_server_additions() -> None:
 
     # Verify Cabo Verde, Gambia, and Zambia entries
     cv_server = next(s for s in servers if s.get("country_code") == "CV")
-    assert "ine.cv" in cv_server["hostname"]
+    assert "ine.cv" in (cv_server.get("url", "") or cv_server.get("hostname", ""))
     assert cv_server["custodian"]["name"] == "Instituto Nacional de Estatística (INE)"
     assert isinstance(cv_server["geocoverage"]["geonames"], list)
 
     gm_server = next(s for s in servers if s.get("country_code") == "GM")
-    assert "gbosdata.org" in gm_server["hostname"]
+    assert "gbosdata.org" in (gm_server.get("url", "") or gm_server.get("hostname", ""))
 
     zm_server = next(s for s in servers if s.get("country_code") == "ZM")
-    assert "zamstats.gov.zm" in zm_server["hostname"]
+    assert "zamstats.gov.zm" in (zm_server.get("url", "") or zm_server.get("hostname", ""))
 
     # Verify that servers list is sorted by hostname
-    hostnames = [(s.get("hostname") or "").lower() for s in servers if s.get("hostname")]
+    insts = [ServerInstallation.model_validate(s) for s in servers]
+    hostnames = [inst.clean_hostname.lower() for inst in insts]
     assert hostnames == sorted(hostnames), "Servers should be sorted alphabetically by hostname"

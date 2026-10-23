@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Registry Schema Simplification (`data/servers.yaml`)**:
+  - Removed redundant `hostname` field from `data/servers.yaml`, treating catalog `url` as the sole source of truth for repository endpoints.
+  - Automatically derive server `hostname` and `clean_hostname` in `ServerInstallation` from `url` using standard URL parsing.
+  - Preserved backward compatibility for programmatic configurations providing explicit `hostname` values.
 - **ROR Identifier Storage & Dynamic Link Composition**:
   - Simplified the `ror` property in `data/servers.yaml` to store only the ROR identifier instead of full URLs.
   - Comprehensive audit and correction of all ROR identifiers against the official ROR API (`api.ror.org`), fixing invalid IDs (e.g. Millennium Challenge Corporation `0539hqx70`, WHO `01f80g185`, World Bank `02md09461`, FAO `00pe0tf51`, UNHCR `0437ej039`, INED `02cnsac56`, FORS `00weppy16`, ILO `03tebpn36`, INE Cabo Verde `04d9bp554`, INSTAT Madagascar `05g23w557`, ZamStats Zambia `05n7sxn21`).

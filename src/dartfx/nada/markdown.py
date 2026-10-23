@@ -72,7 +72,7 @@ def render_servers_markdown(servers_data: list[dict[str, Any]]) -> str:
     installations: list[ServerInstallation] = [
         ServerInstallation.model_validate(s) for s in servers_data if isinstance(s, dict)
     ]
-    installations.sort(key=lambda s: (s.hostname or "").lower())
+    installations.sort(key=lambda s: (s.clean_hostname or s.hostname or "").lower())
 
     countries = {s.country_code for s in installations if s.country_code}
 
@@ -90,13 +90,9 @@ def render_servers_markdown(servers_data: list[dict[str, Any]]) -> str:
         "|---|---|---|---|---|---|---|",
     ]
 
-    raw_map: dict[str, str] = {
-        (s.get("hostname") or "").lower(): s.get("url") for s in servers_data if isinstance(s, dict) and s.get("url")
-    }
-
     for idx, inst in enumerate(installations, start=1):
-        host = inst.hostname or ""
-        url = raw_map.get(host.lower()) or inst.url or f"https://{host}"
+        host = inst.clean_hostname or inst.hostname or ""
+        url = inst.catalog_url or inst.url or f"https://{host}"
         name = (inst.name or host).replace("|", "\\|")
         host_link = f"[{host}]({url})"
 
