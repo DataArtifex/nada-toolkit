@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tri-State Availability Differentiated Stats Summary** (`dartfx-nada stats`):
+  - Added `classify_server_availability()` categorizing repositories into three semantic tiers: `accessible` (open public NADA catalogs), `restricted` (active endpoints protected by Cloudflare challenges, perimeter firewalls, or token authentication), and `offline` (unreachable, decommissioned, DNS failure, timeout, or server error).
+  - Enhanced stats summary captions in Rich console tables and Markdown reports to display tri-state totals: e.g. `Total: 38 accessible • 7 restricted • 30 offline/inactive (75 servers) • 67,936 studies indexed`.
+  - Added structured `"availability"` field to JSON (`--json`) and CSV (`--format csv`) exports.
 - **Authority Information Access (AIA) Intermediate CA Certificate Chasing** (`dartfx-nada stats`, `NadaServer`):
   - Added automated RFC 5280 Authority Information Access (AIA) intermediate CA certificate fetching via `resolve_aia_intermediate_ca()` and `get_ca_bundle_for_host()`.
   - When servers serve incomplete TLS certificate chains (missing intermediate CA certs, causing `SSLCertVerificationError: unable to get local issuer certificate`), `dartfx-nada` automatically inspects the leaf certificate's DER payload, extracts CA Issuers URIs, downloads the missing intermediate certificate(s), and augments Mozilla's `certifi` CA trust bundle.

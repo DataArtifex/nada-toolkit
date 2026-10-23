@@ -6,24 +6,46 @@ The `dartfx-nada stats` command monitors live health, responsiveness, and catalo
 
 The **Status** column classifies repository endpoints into semantic, actionable diagnostics:
 
-| Status Badge | Category | Description |
-| :--- | :--- | :--- |
-| `Online` | Operational | Valid NADA API server responded with study counts. |
-| `Cached (24h)` | Cache Hit | Metrics loaded from local `.stats_cache.json` within the 24-hour TTL. Use `--refresh` to bypass. |
-| `Online (AIA Fixed)` | Operational / Repaired | Missing intermediate CA certificate fetched and verified via Authority Information Access (AIA). |
-| `Online (HTTPS Avail)` | Operational / Advisory | Server is currently reached over HTTP, but HTTPS is fully functional and recommended. |
-| `HTTP (SSL Failed)` | Fallback | Primary HTTPS failed SSL certificate verification, but recovered via HTTP port 80. |
-| `SSL Incomplete Chain` | SSL/TLS | The server serves its leaf certificate without intermediate CA certificates, and HTTP port 80 is closed. |
-| `SSL Hostname Mismatch` | SSL/TLS | The certificate Subject Alternative Name (SAN) does not match the configured domain. |
-| `SSL Expired` | SSL/TLS | The server's SSL/TLS certificate has expired. |
-| `SSL Untrusted / Self-Signed` | SSL/TLS | Certificate signed by an unknown or self-signed authority not present in Mozilla's trust store. |
-| `Domain For Sale` | Inactive | The domain registration has lapsed and redirects to a domain broker or registrar parking page (e.g. Sedo, GoDaddy, Dan.com). |
-| `Not NADA Server` | Inactive / Replaced | Endpoint returns HTTP 200/HTML or redirects, but does not provide valid NADA API responses. |
-| `DNS Resolution Failure` | Network | Domain name cannot be resolved by DNS (`[Errno 8] nodename nor servname provided, or not known`). |
-| `Timeout (10s)` | Network | Connect or read timeout exceeded the 10-second limit. |
-| `Connection Refused` | Network | Remote server rejected the TCP connection on port 80/443. |
-| `401 Unauthorized` / `403 Forbidden` | Access | Server is active but catalog endpoints require authentication. |
-| `WAF / Cloudflare Block` | Access | Request was blocked by a Web Application Firewall, Cloudflare challenge, or bot protection rule. |
+| Status Badge | Category | Availability Tier | Description |
+| :--- | :--- | :--- | :--- |
+| `Online` | Operational | Accessible | Valid NADA API server responded with study counts. |
+| `Cached (24h)` | Cache Hit | Accessible | Metrics loaded from local `.stats_cache.json` within the 24-hour TTL. Use `--refresh` to bypass. |
+| `Online (AIA Fixed)` | Operational / Repaired | Accessible | Missing intermediate CA certificate fetched and verified via Authority Information Access (AIA). |
+| `Online (HTTPS Avail)` | Operational / Advisory | Accessible | Server is currently reached over HTTP, but HTTPS is fully functional and recommended. |
+| `HTTP (SSL Failed)` | Fallback | Accessible | Primary HTTPS failed SSL certificate verification, but recovered via HTTP port 80. |
+| `Auth Required` / `401` | Access | Restricted | Server is active but catalog endpoints require authentication. |
+| `Forbidden (403)` | Access | Restricted | Server rejected the request due to access control or client filtering. |
+| `Cloudflare Challenge` | Access | Restricted | Cloudflare Turnstile or JavaScript bot challenge intercepted API requests. |
+| `Perimeter Block (Geo/IP)` | Access | Restricted | National or institutional perimeter firewall blocks access from external IP ranges. |
+| `WAF / Bot Protection` | Access | Restricted | Request was blocked by AWS WAF, DDoS-Guard, or automated protection rules. |
+| `SSL Incomplete Chain` | SSL/TLS | Offline / Error | The server serves its leaf certificate without intermediate CA certificates, and HTTP port 80 is closed. |
+| `SSL Hostname Mismatch` | SSL/TLS | Offline / Error | The certificate Subject Alternative Name (SAN) does not match the configured domain. |
+| `SSL Expired` | SSL/TLS | Offline / Error | The server's SSL/TLS certificate has expired. |
+| `SSL Untrusted / Self-Signed` | SSL/TLS | Offline / Error | Certificate signed by an unknown or self-signed authority not present in Mozilla's trust store. |
+| `Domain For Sale` | Inactive | Offline / Inactive | The domain registration has lapsed and redirects to a domain broker or registrar parking page (e.g. Sedo, GoDaddy, Dan.com). |
+| `Catalog Retired (410)` | Inactive | Offline / Inactive | Catalog decommissioned or retired by institution. |
+| `Not NADA Server` | Inactive / Replaced | Offline / Inactive | Endpoint returns HTTP 200/HTML or redirects, but does not provide valid NADA API responses. |
+| `Not Found (404)` | Network | Offline / Error | Catalog API endpoints not found on host. |
+| `DNS Resolution Failure` | Network | Offline / Error | Domain name cannot be resolved by DNS (`[Errno 8] nodename nor servname provided, or not known`). |
+| `Timeout (10s)` | Network | Offline / Error | Connect or read timeout exceeded the 10-second limit. |
+| `Connection Refused` | Network | Offline / Error | Remote server rejected the TCP connection on port 80/443. |
+| `Service Unavailable (503)` | Server | Offline / Error | Backend service temporarily unavailable or under maintenance. |
+| `Server Error (500)` | Server | Offline / Error | Backend application error or unhandled PHP exception. |
+
+---
+
+## Availability Tiers & Summary Metrics
+
+The summary at the bottom of `dartfx-nada stats` differentiates repositories into three clear availability tiers:
+
+1. **Accessible** (`green`): Actively responding NADA installations whose study catalog and metadata can be freely browsed and harvested.
+2. **Restricted** (`yellow`): Active hosts/installations where access is blocked by perimeter firewalls (e.g. BPS Indonesia), Cloudflare bot challenges (e.g. Pacific Data Hub, PSA Philippines), or API authentication tokens.
+3. **Offline / Inactive** (`red`): Endpoints that are dead, unregistered/for sale, retired, timing out, or failing DNS/connection/TLS.
+
+**Example Summary Caption:**
+```text
+Total: 38 accessible • 7 restricted • 30 offline/inactive (75 servers) • 67,936 studies indexed
+```
 
 ---
 

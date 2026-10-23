@@ -1041,16 +1041,22 @@ def test_display_server_stats_shows_unresolvable_diagnostics(monkeypatch, capsys
         lambda host, **_kwargs: mock_stats.get(host, {"is_nada": False, "error": "Unknown Error"}),
     )
 
-    # 1. JSON output reports exact statuses and error reasons
+    # 1. JSON output reports exact statuses, error reasons, and availability tiers
     records = display_server_stats(format="json")
     status_map = {r["name"]: r["status"] for r in records}
+    avail_map = {r["name"]: r["availability"] for r in records}
     assert status_map["BPS Indonesia"] == "Perimeter Block (Geo/IP)"
+    assert avail_map["BPS Indonesia"] == "restricted"
     assert status_map["Pacific Data Hub"] == "Cloudflare Challenge"
+    assert avail_map["Pacific Data Hub"] == "restricted"
     assert status_map["APHRC"] == "Service Unavailable (503)"
+    assert avail_map["APHRC"] == "offline"
     assert status_map["ILO Retired"] == "Catalog Retired (410)"
+    assert avail_map["ILO Retired"] == "offline"
     assert status_map["Armenia Stats"] == "Online"
+    assert avail_map["Armenia Stats"] == "accessible"
 
-    # 2. Markdown output includes summary line and clear diagnostic rows
+    # 2. Markdown output includes tri-state summary line and clear diagnostic rows
     capsys.readouterr()
     display_server_stats(format="markdown")
     captured_md = capsys.readouterr().out
@@ -1058,8 +1064,34 @@ def test_display_server_stats_shows_unresolvable_diagnostics(monkeypatch, capsys
     assert "Cloudflare Challenge" in captured_md
     assert "Service Unavailable (503)" in captured_md
     assert "Catalog Retired (410)" in captured_md
-    assert "1/5 online (4 restricted/offline)" in captured_md
+    assert "1 accessible • 2 restricted • 2 offline/inactive (5 servers)" in captured_md
     assert "42 total studies indexed" in captured_md
+
+
+def test_classify_server_availability() -> None:
+    from dartfx.nada.harvester import classify_server_availability
+
+    # Accessible
+    assert classify_server_availability(status="Online", is_nada=True) == "accessible"
+    assert classify_server_availability(status="Online (AIA Fixed)", is_nada=True) == "accessible"
+    assert classify_server_availability(status="Cached (24h)", is_nada=True) == "accessible"
+    assert classify_server_availability(status="HTTP (SSL Failed)", is_nada=True) == "accessible"
+
+    # Restricted
+    assert classify_server_availability(status="Auth Required", is_nada=True, requires_token=True) == "restricted"
+    assert classify_server_availability(status="Cloudflare Challenge", error="Cloudflare Challenge") == "restricted"
+    assert (
+        classify_server_availability(status="Perimeter Block (Geo/IP)", error="Perimeter Block (Geo/IP)")
+        == "restricted"
+    )
+    assert classify_server_availability(status="Forbidden (403)", error="Forbidden (403)") == "restricted"
+
+    # Offline / Inactive
+    assert classify_server_availability(status="Timeout (10s)", error="Timeout (10s)") == "offline"
+    assert classify_server_availability(status="DNS Resolution Failure", error="DNS Resolution Failure") == "offline"
+    assert classify_server_availability(status="Domain For Sale", error="Domain For Sale") == "offline"
+    assert classify_server_availability(status="Catalog Retired (410)", error="Catalog Retired (410)") == "offline"
+    assert classify_server_availability(status="Not NADA Server") == "offline"
 
 
 def test_get_ca_bundle_for_host(tmp_path: Path) -> None:

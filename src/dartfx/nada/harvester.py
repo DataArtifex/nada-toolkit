@@ -1153,6 +1153,56 @@ def _diagnose_probe_error(probes: list[requests.Response]) -> str:
     return "Not NADA Server"
 
 
+def classify_server_availability(
+    status: str | None = None,
+    is_nada: bool = False,
+    error: str | None = None,
+    requires_token: bool = False,
+) -> str:
+    """Classify server health into 'accessible', 'restricted', or 'offline'.
+
+    Categories:
+        - 'accessible': Operational NADA server with publicly queryable catalog.
+        - 'restricted': Live server where catalog queries are blocked by authentication,
+                        perimeter firewalls, bot protection, or Cloudflare challenges.
+        - 'offline': Inactive, decommissioned, DNS failure, timeout, non-NADA, or server error.
+
+    Returns:
+        str: 'accessible', 'restricted', or 'offline'.
+    """
+    clean_status = (status or "").lower()
+    clean_error = (error or "").lower()
+    combined = f"{clean_status} {clean_error}"
+
+    # 1. Check for access restrictions on active endpoints
+    if requires_token or any(
+        k in combined
+        for k in [
+            "auth",
+            "token",
+            "forbidden",
+            "401",
+            "403",
+            "cloudflare",
+            "perimeter",
+            "waf",
+            "bot protection",
+            "turnstile",
+        ]
+    ):
+        return "restricted"
+
+    # 2. Check for fully accessible operational NADA catalog
+    if is_nada and not clean_error:
+        return "accessible"
+
+    if is_nada and any(s in clean_status for s in ["online", "cached", "http (ssl failed)"]):
+        return "accessible"
+
+    # 3. Otherwise, server is offline, non-NADA, retired, or hard error
+    return "offline"
+
+
 def get_ca_bundle_for_host(host: str, cache_dir: Path | None = None) -> str | None:
     """Return path to cached intermediate CA bundle for host if available.
 
@@ -1756,7 +1806,7 @@ def display_server_stats(
         elif req_tok:
             plain_status = "Auth Required"
         elif stat.get("cached"):
-            plain_status = "Cached (24h)"
+            plain_status = "Online (Cached)"
         else:
             plain_status = "Online"
 
@@ -1773,6 +1823,13 @@ def display_server_stats(
         else:
             studies_int = None
 
+        availability = classify_server_availability(
+            status=plain_status,
+            is_nada=is_nada,
+            error=stat.get("error"),
+            requires_token=req_tok,
+        )
+
         record: dict[str, Any] = {
             "name": inst.name or inst.clean_hostname,
             "url": inst.catalog_url or inst.url,
@@ -1785,6 +1842,7 @@ def display_server_stats(
             "studies": studies_int,
             "latency_seconds": lat,
             "status": plain_status,
+            "availability": availability,
             "is_nada": is_nada,
             "cached": bool(stat.get("cached")),
             "aia_repaired": bool(stat.get("aia_repaired")),
@@ -1849,12 +1907,14 @@ def display_server_stats(
             md_lines.append(md_row)
 
         if len(records) > 1:
-            online_count = sum(1 for r in records if r.get("is_nada"))
-            issues_count = len(records) - online_count
+            accessible_count = sum(1 for r in records if r.get("availability") == "accessible")
+            restricted_count = sum(1 for r in records if r.get("availability") == "restricted")
+            offline_count = sum(1 for r in records if r.get("availability") == "offline")
             total_studies = sum(int(r.get("studies") or 0) for r in records if r.get("is_nada"))
             md_lines.append("")
             md_lines.append(
-                f"_Summary: {online_count}/{len(records)} online ({issues_count} restricted/offline) • "
+                f"_Summary: {accessible_count} accessible • {restricted_count} restricted • "
+                f"{offline_count} offline/inactive ({len(records)} servers) • "
                 f"{total_studies:,} total studies indexed._"
             )
 
@@ -1878,6 +1938,7 @@ def display_server_stats(
             "studies",
             "latency_seconds",
             "status",
+            "availability",
         ]
         if out_path:
             with open(out_path, "w", encoding="utf-8", newline="") as f:
@@ -1894,13 +1955,16 @@ def display_server_stats(
         return records
 
     # Default: Rich Table
-    if len(stat_results) > 1:
-        online_count = sum(1 for _, s in stat_results if s.get("is_nada"))
-        issues_count = len(stat_results) - online_count
-        total_studies = sum(int(s.get("studies") or 0) for _, s in stat_results if s.get("is_nada"))
+    if len(records) > 1:
+        accessible_count = sum(1 for r in records if r.get("availability") == "accessible")
+        restricted_count = sum(1 for r in records if r.get("availability") == "restricted")
+        offline_count = sum(1 for r in records if r.get("availability") == "offline")
+        total_studies = sum(int(r.get("studies") or 0) for r in records if r.get("is_nada"))
         table.caption = (
-            f"[bold]Total:[/] {online_count}/{len(stat_results)} online"
-            f" ([yellow]{issues_count} restricted/offline[/yellow])"
+            f"[bold]Total:[/] [green]{accessible_count}[/green] accessible"
+            f" • [yellow]{restricted_count}[/yellow] restricted"
+            f" • [red]{offline_count}[/red] offline/inactive"
+            f" ({len(records)} servers)"
             f" • [cyan]{total_studies:,}[/cyan] studies indexed"
         )
 
@@ -1947,7 +2011,7 @@ def display_server_stats(
         elif req_tok:
             status_text = "[yellow]Auth Required[/yellow]"
         elif stat.get("cached"):
-            status_text = "[dim cyan]Cached (24h)[/dim cyan]"
+            status_text = "[dim cyan]Online (Cached)[/dim cyan]"
         else:
             status_text = "[green]Online[/green]"
 
