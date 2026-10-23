@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Authority Information Access (AIA) Intermediate CA Certificate Chasing** (`dartfx-nada stats`, `NadaServer`):
+  - Added automated RFC 5280 Authority Information Access (AIA) intermediate CA certificate fetching via `resolve_aia_intermediate_ca()` and `get_ca_bundle_for_host()`.
+  - When servers serve incomplete TLS certificate chains (missing intermediate CA certs, causing `SSLCertVerificationError: unable to get local issuer certificate`), `dartfx-nada` automatically inspects the leaf certificate's DER payload, extracts CA Issuers URIs, downloads the missing intermediate certificate(s), and augments Mozilla's `certifi` CA trust bundle.
+  - Caches combined PEM bundles locally in `~/.cache/dartfx/nada/ca_bundles/{host}.pem` for fast, persistent cryptographic verification across subsequent requests.
+  - Successfully recovers and unlocks servers with incomplete chains over HTTPS (such as `anads.ansd.sn` in Senegal and `censusindia.gov.in` in India with 40,273 studies) without compromising TLS verification or falling back to unencrypted HTTP.
+  - Added new status indicator `Online (AIA Fixed)` in `dartfx-nada stats` table, JSON, and Markdown outputs, and detailed protocol/certificate chain diagnostics in `dartfx-nada info`.
 - **PHP Version & Server Environment Detection** (`dartfx-nada stats`, `dartfx-nada info`):
   - Passive extraction of PHP runtime version and web server banner via `extract_server_environment()` from standard HTTP response headers (`X-Powered-By`, `Server`, `X-PHP-Version`).
   - Color-coded security lifecycle formatting in `format_php_version()` highlighting active vs. end-of-life runtimes: green for PHP >= 8.2 (supported), yellow for PHP 8.0–8.1 (EOL), bold red for PHP < 8.0 (Critical EOL), and dim red `~5.x-7.x` inference for legacy NADA v4 instances when banners are hidden.

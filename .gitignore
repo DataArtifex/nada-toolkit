@@ -1,6 +1,9 @@
 
 repository/
 
+tmp/
+temp/
+
 #
 # PYTHON (https://github.com/github/gitignore/blob/main/Python.gitignore)
 #

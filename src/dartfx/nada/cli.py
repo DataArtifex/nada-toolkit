@@ -292,7 +292,16 @@ def info(
     if st.get("web_server"):
         table.add_row("Web Server", str(st.get("web_server")))
 
-    if st.get("http_fallback"):
+    if st.get("aia_repaired"):
+        table.add_row(
+            "Protocol Status",
+            "[cyan]Online (HTTPS via AIA Intermediate CA Chasing)[/cyan]",
+        )
+        table.add_row(
+            "Certificate Chain",
+            "[dim cyan]Repaired: Missing intermediate CA fetched via Authority Information Access (AIA).[/dim cyan]",
+        )
+    elif st.get("http_fallback"):
         table.add_row(
             "Protocol Status",
             f"[yellow]HTTP Fallback (HTTPS SSL Failed: {st.get('ssl_error', 'SSL Failed')})[/yellow]",

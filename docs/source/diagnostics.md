@@ -10,9 +10,10 @@ The **Status** column classifies repository endpoints into semantic, actionable 
 | :--- | :--- | :--- |
 | `Online` | Operational | Valid NADA API server responded with study counts. |
 | `Cached (24h)` | Cache Hit | Metrics loaded from local `.stats_cache.json` within the 24-hour TTL. Use `--refresh` to bypass. |
+| `Online (AIA Fixed)` | Operational / Repaired | Missing intermediate CA certificate fetched and verified via Authority Information Access (AIA). |
 | `Online (HTTPS Avail)` | Operational / Advisory | Server is currently reached over HTTP, but HTTPS is fully functional and recommended. |
 | `HTTP (SSL Failed)` | Fallback | Primary HTTPS failed SSL certificate verification, but recovered via HTTP port 80. |
-| `SSL Incomplete Chain` | SSL/TLS | The server serves its leaf certificate without intermediate CA certificates. |
+| `SSL Incomplete Chain` | SSL/TLS | The server serves its leaf certificate without intermediate CA certificates, and HTTP port 80 is closed. |
 | `SSL Hostname Mismatch` | SSL/TLS | The certificate Subject Alternative Name (SAN) does not match the configured domain. |
 | `SSL Expired` | SSL/TLS | The server's SSL/TLS certificate has expired. |
 | `SSL Untrusted / Self-Signed` | SSL/TLS | Certificate signed by an unknown or self-signed authority not present in Mozilla's trust store. |
@@ -26,18 +27,27 @@ The **Status** column classifies repository endpoints into semantic, actionable 
 
 ---
 
-## Bidirectional Protocol Handling & Resilience
+## Bidirectional Protocol Handling & AIA Resilience
 
-`dartfx-nada` features bidirectional protocol intelligence across both the CLI (`stats`, `info`) and core library (`NadaServer`):
+`dartfx-nada` features automated cryptographic resilience and protocol intelligence across both the CLI (`stats`, `info`) and core library (`NadaServer`):
 
-### 1. SSL Failure -> HTTP Fallback
-When a server has broken SSL/TLS configuration (such as missing intermediate certificates or hostname mismatches), Python and OpenSSL reject the HTTPS connection. Rather than failing outright, `dartfx-nada`:
-1. Captures the specific SSL error (e.g., `SSL Incomplete Chain`).
-2. Automatically probes `http://` on port 80.
+### 1. AIA Intermediate CA Certificate Chasing (HTTPS Repaired)
+When a server has an incomplete certificate chain (missing intermediate CA certificate):
+1. Standard Python and OpenSSL libraries fail with `SSLCertVerificationError: unable to get local issuer certificate`.
+2. Rather than dropping security or disabling certificate verification (`verify=False`), `dartfx-nada` implements RFC 5280 **Authority Information Access (AIA) chasing**.
+3. It inspects the server's leaf certificate DER bytes to locate the `CA Issuers` URI (e.g. `http://secure.globalsign.com/cacert/...crt` or Let's Encrypt / Sectigo PKI endpoints).
+4. It downloads the missing intermediate certificate, converts it from DER to PEM, and appends it to Mozilla's root CA trust bundle (`certifi`).
+5. It caches the augmented bundle in `~/.cache/dartfx/nada/ca_bundles/{host}.pem`.
+6. Subsequent HTTPS connections verify the full chain cryptographically against the root authority, reporting status as **`Online (AIA Fixed)`**.
+
+### 2. SSL Failure -> HTTP Fallback
+If intermediate CA chasing cannot repair the SSL connection (for example, if the certificate is self-signed, expired, or hostname mismatched), `dartfx-nada`:
+1. Captures the specific SSL error (e.g., `SSL Expired` or `SSL Hostname Mismatch`).
+2. Probes `http://` on port 80.
 3. If the HTTP endpoint is active and serves valid NADA catalog data, the server's study counts are recovered, the status is flagged as **`HTTP (SSL Failed)`**, and `NadaServer.request()` falls back to HTTP automatically.
-4. The exact SSL root cause is preserved and reported in `dartfx-nada info` and diagnostic logs.
+4. If port 80 is closed, firewalled, or strictly redirects back to HTTPS, the server retains its exact SSL diagnostic status (e.g., `SSL Incomplete Chain` or `SSL Expired`).
 
-### 2. HTTP Server -> HTTPS Upgrade Probing
+### 3. HTTP Server -> HTTPS Upgrade Probing
 Many historical NADA registries contain legacy `http://` URLs. If a server is queried over HTTP:
 1. `dartfx-nada` automatically probes `https://` in the background.
 2. If the HTTPS endpoint responds with valid NADA responses, valid certificates, and zero SSL errors, `stats` highlights the server as **`Online (HTTPS Avail)`**.
@@ -47,30 +57,28 @@ Many historical NADA registries contain legacy `http://` URLs. If a server is qu
 
 ## Technical Deep-Dive: SSL Incomplete Chain vs. Web Browsers
 
-### Why does a server show `SSL Incomplete Chain` in the CLI but load fine in a web browser?
+### Why did some servers show `HTTP (SSL Failed)` while others showed `SSL Incomplete Chain`?
 
-This is one of the most common issues observed when working with national statistical agency servers.
+Both servers suffered from the exact same SSL misconfiguration: an incomplete certificate chain (`unable to get local issuer certificate`).
+However, their fallback behavior differed:
+- **`anads.ansd.sn` (ANSD Senegal)**: Had an open, responsive unencrypted HTTP service on port 80. When initial HTTPS failed, `dartfx-nada`'s fallback recovered the catalog via HTTP port 80 and reported `HTTP (SSL Failed)`.
+- **`censusindia.gov.in` (Census Digital Library, India)**: Had its HTTP port 80 closed, timing out, or not serving the catalog. Because HTTP fallback failed, the server reported the raw SSL failure `SSL Incomplete Chain`.
 
-#### The Server Configuration Error
-When an SSL/TLS certificate is issued by a Certificate Authority (such as Let's Encrypt, Sectigo, or DigiCert), it sits at the bottom of a trust hierarchy:
+With the introduction of **AIA Intermediate CA Chasing**, both servers now automatically repair their certificate chain, connect securely over verified HTTPS, and report **`Online (AIA Fixed)`**!
+
+### The Server Configuration Error
+When an SSL/TLS certificate is issued by a Certificate Authority (such as Let's Encrypt, Sectigo, GlobalSign, or DigiCert), it sits at the bottom of a trust hierarchy:
 1. **Root CA Certificate** (installed in operating system trust stores)
 2. **Intermediate CA Certificate** (signs the customer's certificate)
 3. **Leaf / Server Certificate** (the specific domain)
 
 Web server software (Nginx, Apache, IIS) must be configured to send the **full certificate chain** (the leaf certificate followed by the intermediate CA certificates). If a server administrator configures only the leaf certificate (`cert.pem`) instead of the bundled chain (`fullchain.pem`), the server sends an **incomplete chain**.
 
-#### Why Python / CLI Tools Fail
-Standard command-line utilities and libraries (`requests`, `urllib3`, `curl`, OpenSSL) only have access to root CA certificates (via Mozilla's `certifi` bundle). When the server fails to provide the intermediate certificate, OpenSSL cannot link the server's certificate back to a trusted root, causing:
-```text
-SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] unable to get local issuer certificate
-```
-
-#### Why Web Browsers Tolerate It
-Modern web browsers (Google Chrome, Mozilla Firefox, Apple Safari, Microsoft Edge) implement automated repair mechanisms that conceal this misconfiguration:
-- **Authority Information Access (AIA) Chasing**: The leaf certificate contains an X.509 extension specifying an HTTP URL where the intermediate certificate can be fetched. When a browser detects a missing intermediate certificate, it fetches it in the background to complete the chain.
-- **Intermediate Certificate Caching**: Browsers cache valid intermediate certificates encountered on any previously visited website. If any other website shared the same intermediate CA, the browser uses the cached certificate silently.
-
-Because CLI clients and automated harvesters do not perform background AIA chasing, `dartfx-nada` highlights this as **`SSL Incomplete Chain`**.
+### How Server Administrators Resolve Incomplete Chains
+Server administrators can resolve this issue permanently by configuring the full certificate chain:
+- **Nginx**: Use `ssl_certificate /path/to/fullchain.pem;` (not `cert.pem`).
+- **Apache**: Use `SSLCertificateFile /path/to/cert.pem` and `SSLCertificateChainFile /path/to/chain.pem` (or combined in Apache 2.4.8+).
+- **Microsoft IIS**: Import the intermediate CA certificate into the Windows Server `Local Computer -> Intermediate Certification Authorities` certificate store so IIS bundles it in the TLS handshake.
 
 ---
 

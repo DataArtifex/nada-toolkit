@@ -12,6 +12,8 @@ import io
 import json
 import os
 import re
+import socket
+import ssl
 import sys
 import threading
 import time
@@ -1151,12 +1153,115 @@ def _diagnose_probe_error(probes: list[requests.Response]) -> str:
     return "Not NADA Server"
 
 
+def get_ca_bundle_for_host(host: str, cache_dir: Path | None = None) -> str | None:
+    """Return path to cached intermediate CA bundle for host if available.
+
+    Args:
+        host: Hostname or domain of the server.
+        cache_dir: Optional custom directory where CA bundles are cached.
+
+    Returns:
+        str | None: String path to the bundle file, or None if not cached.
+    """
+    clean_host = host.split(":")[0].strip()
+    target_cache = cache_dir or (Path.home() / ".cache" / "dartfx" / "nada" / "ca_bundles")
+    bundle_path = target_cache / f"{clean_host}.pem"
+    if bundle_path.exists() and bundle_path.stat().st_size > 0:
+        return str(bundle_path)
+    return None
+
+
+def resolve_aia_intermediate_ca(
+    host: str,
+    port: int = 443,
+    timeout: int = 5,
+    cache_dir: Path | None = None,
+) -> Path | None:
+    """Attempt Authority Information Access (AIA) intermediate CA certificate fetching.
+
+    When a server provides an incomplete TLS certificate chain (missing intermediate CA certificate),
+    standard TLS libraries fail with SSLCertVerificationError ('unable to get local issuer certificate').
+    This function connects to the server with verify_mode=CERT_NONE to inspect the leaf certificate's
+    DER payload, extracts the Authority Information Access (AIA) CA Issuers URI, downloads the missing
+    intermediate certificate(s), and returns the path to a combined PEM CA bundle (certifi + intermediate).
+
+    Returns:
+        Path | None: Path to the combined CA bundle file if successfully created, or None if unavailable.
+    """
+    clean_host = host.split(":")[0].strip()
+    target_cache = cache_dir or (Path.home() / ".cache" / "dartfx" / "nada" / "ca_bundles")
+    bundle_path = target_cache / f"{clean_host}.pem"
+
+    if bundle_path.exists() and bundle_path.stat().st_size > 0:
+        return bundle_path
+
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+        with socket.create_connection((clean_host, port), timeout=timeout) as sock:
+            with ctx.wrap_socket(sock, server_hostname=clean_host) as ssock:
+                der_cert = ssock.getpeercert(binary_form=True)
+
+        if not der_cert:
+            return None
+
+        # Extract AIA CA Issuers HTTP URLs (ending in .crt or .cer) from DER
+        matches = re.findall(rb"https?://[^\x00-\x20\x7f-\xff]+\.(?:crt|cer)", der_cert)
+        if not matches:
+            return None
+
+        import certifi
+
+        with open(certifi.where(), encoding="utf-8") as f:
+            augmented_bundle = f.read()
+
+        urls_to_fetch = [m.decode("ascii", errors="ignore") for m in matches]
+        seen_urls = set(urls_to_fetch)
+        fetched_pems: list[str] = []
+
+        while urls_to_fetch:
+            url = urls_to_fetch.pop(0)
+            try:
+                r = requests.get(url, timeout=timeout)
+                if r.status_code == 200 and r.content:
+                    content = r.content
+                    if b"-----BEGIN CERTIFICATE-----" in content:
+                        pem_cert = content.decode("utf-8", errors="ignore")
+                    else:
+                        pem_cert = ssl.DER_cert_to_PEM_cert(content)
+                    fetched_pems.append(pem_cert)
+
+                    # Look for parent intermediate AIA URLs within the intermediate DER
+                    parent_matches = re.findall(rb"https?://[^\x00-\x20\x7f-\xff]+\.(?:crt|cer)", content)
+                    for pm in parent_matches:
+                        purl = pm.decode("ascii", errors="ignore")
+                        if purl not in seen_urls:
+                            seen_urls.add(purl)
+                            urls_to_fetch.append(purl)
+            except Exception:
+                continue
+
+        if not fetched_pems:
+            return None
+
+        augmented_bundle = f"{augmented_bundle}\n" + "\n".join(fetched_pems)
+        target_cache.mkdir(parents=True, exist_ok=True)
+        bundle_path.write_text(augmented_bundle, encoding="utf-8")
+        return bundle_path
+
+    except Exception:
+        return None
+
+
 def _probe_nada_url(
     base_url: str,
     clean_host: str,
     headers: dict[str, str],
     timeout: int,
     query: str | None = None,
+    verify: str | bool | None = None,
 ) -> dict[str, Any]:
     """Probe a single base URL (http or https) for NADA API / catalog endpoints."""
     res: dict[str, Any] = {
@@ -1166,11 +1271,16 @@ def _probe_nada_url(
         "version": None,
         "requires_token": False,
         "error": None,
+        "raw_ssl_error": None,
         "is_ssl_error": False,
         "latency_seconds": None,
         "php_version": None,
         "web_server": None,
     }
+
+    req_kwargs: dict[str, Any] = {"headers": headers, "timeout": timeout}
+    if verify is not None:
+        req_kwargs["verify"] = verify
 
     def _inspect_resp_env(resp: requests.Response | None) -> None:
         if resp is None:
@@ -1185,7 +1295,7 @@ def _probe_nada_url(
     try:
         # 1. Probe collections endpoint
         coll_url = f"{base_url}/index.php/api/catalog/collections"
-        r_coll = requests.get(coll_url, headers=headers, timeout=timeout)
+        r_coll = requests.get(coll_url, **req_kwargs)
         _inspect_resp_env(r_coll)
         if _is_parked_or_domain_sale(clean_host, r_coll):
             res["error"] = "Domain For Sale"
@@ -1222,7 +1332,7 @@ def _probe_nada_url(
             search_url = f"{base_url}/index.php/api/catalog/search?ps=1"
             if query:
                 search_url += f"&sk={urllib.parse.quote(query)}"
-            r_search = requests.get(search_url, headers=headers, timeout=timeout)
+            r_search = requests.get(search_url, **req_kwargs)
             _inspect_resp_env(r_search)
             if _is_parked_or_domain_sale(clean_host, r_search):
                 res["error"] = "Domain For Sale"
@@ -1252,7 +1362,7 @@ def _probe_nada_url(
         # 3. Probe v4 CSV export endpoint
         if not res["is_nada"] and res["error"] != "Domain For Sale":
             v4_url = f"{base_url}/index.php/catalog/export/csv?ps=1"
-            r_v4 = requests.get(v4_url, headers=headers, timeout=timeout)
+            r_v4 = requests.get(v4_url, **req_kwargs)
             _inspect_resp_env(r_v4)
             if _is_parked_or_domain_sale(clean_host, r_v4):
                 res["error"] = "Domain For Sale"
@@ -1269,7 +1379,7 @@ def _probe_nada_url(
         if res["is_nada"] and res.get("version") == "4" and res.get("studies", 0) == 0:
             try:
                 cat_url = f"{base_url}/index.php/catalog"
-                r_cat = requests.get(cat_url, headers=headers, timeout=timeout)
+                r_cat = requests.get(cat_url, **req_kwargs)
                 _inspect_resp_env(r_cat)
                 if r_cat.status_code == 200:
                     html_txt = r_cat.text
@@ -1302,7 +1412,7 @@ def _probe_nada_url(
             # If all subpath probes returned 404 (or failed), also probe the base URL
             if not probes or all(p.status_code == 404 for p in probes):
                 try:
-                    r_home = requests.get(base_url, headers=headers, timeout=timeout, allow_redirects=True)
+                    r_home = requests.get(base_url, allow_redirects=True, **req_kwargs)
                     _inspect_resp_env(r_home)
                     if _is_parked_or_domain_sale(clean_host, r_home):
                         res["error"] = "Domain For Sale"
@@ -1319,6 +1429,7 @@ def _probe_nada_url(
     except requests.exceptions.SSLError as ssl_err:
         res["latency_seconds"] = round(time.time() - t0, 2)
         res["error"] = abbreviate_error(str(ssl_err))
+        res["raw_ssl_error"] = str(ssl_err)
         res["is_ssl_error"] = True
     except requests.exceptions.Timeout:
         res["latency_seconds"] = round(time.time() - t0, 2)
@@ -1373,9 +1484,13 @@ def fetch_server_stats(
 
     primary_url = base_url
 
-    stats = _probe_nada_url(primary_url, clean_host, headers, timeout, query=query)
+    cached_bundle = get_ca_bundle_for_host(clean_host) if primary_scheme == "https" else None
+    stats = _probe_nada_url(primary_url, clean_host, headers, timeout, query=query, verify=cached_bundle)
     stats["server"] = clean_host
     stats["scheme"] = primary_scheme
+    if cached_bundle and stats.get("is_nada"):
+        stats["aia_repaired"] = True
+        stats["ca_bundle"] = cached_bundle
 
     # Enhancement 1: If server is on HTTP, check if HTTPS is available and recommend switching if fully functional
     if primary_scheme == "http" and stats.get("is_nada"):
@@ -1392,8 +1507,42 @@ def fetch_server_stats(
         except Exception:
             pass
 
-    # Enhancement 2: If primary was HTTPS and SSL failed, check if we can fall back to HTTP
+    # Enhancement 2: If primary was HTTPS and SSL failed, attempt AIA intermediate CA chasing
     if primary_scheme == "https" and stats.get("is_ssl_error"):
+        err_str = str(stats.get("raw_ssl_error") or stats.get("error") or "")
+        if "unable to get local issuer certificate" in err_str or "Incomplete Chain" in str(stats.get("error")):
+            try:
+                aia_bundle = resolve_aia_intermediate_ca(clean_host, port=parsed.port or 443, timeout=min(5, timeout))
+                if aia_bundle:
+                    aia_stats = _probe_nada_url(
+                        primary_url,
+                        clean_host,
+                        headers,
+                        timeout=timeout,
+                        query=query,
+                        verify=str(aia_bundle),
+                    )
+                    if aia_stats.get("is_nada"):
+                        stats["is_nada"] = True
+                        stats["studies"] = aia_stats["studies"]
+                        stats["collections"] = aia_stats["collections"]
+                        stats["version"] = aia_stats["version"]
+                        stats["requires_token"] = aia_stats["requires_token"]
+                        stats["aia_repaired"] = True
+                        stats["ca_bundle"] = str(aia_bundle)
+                        stats["is_ssl_error"] = False
+                        stats["ssl_error"] = None
+                        stats["error"] = None
+                        stats["scheme"] = "https"
+                        if aia_stats.get("php_version"):
+                            stats["php_version"] = aia_stats["php_version"]
+                        if aia_stats.get("web_server"):
+                            stats["web_server"] = aia_stats["web_server"]
+            except Exception:
+                pass
+
+    # Enhancement 3: If primary was HTTPS and SSL failed (and not repaired by AIA), check if we can fall back to HTTP
+    if primary_scheme == "https" and not stats.get("is_nada") and stats.get("is_ssl_error"):
         try:
             http_url = f"http://{clean_host}{port_suffix}{subpath}"
             http_stats = _probe_nada_url(http_url, clean_host, headers, timeout=timeout, query=query)
@@ -1598,6 +1747,8 @@ def display_server_stats(
                 plain_status = abbreviate_error(str(stat["error"]))
             else:
                 plain_status = "Not NADA Server"
+        elif stat.get("aia_repaired"):
+            plain_status = "Online (AIA Fixed)"
         elif stat.get("http_fallback"):
             plain_status = "HTTP (SSL Failed)"
         elif stat.get("https_upgrade_recommended"):
@@ -1636,6 +1787,7 @@ def display_server_stats(
             "status": plain_status,
             "is_nada": is_nada,
             "cached": bool(stat.get("cached")),
+            "aia_repaired": bool(stat.get("aia_repaired")),
             "error": stat.get("error"),
         }
         records.append(record)
@@ -1786,6 +1938,8 @@ def display_server_stats(
                     status_text = f"[red]{abbr}[/red]"
             else:
                 status_text = "[dim red]Not NADA Server[/dim red]"
+        elif stat.get("aia_repaired"):
+            status_text = "[cyan]Online (AIA Fixed)[/cyan]"
         elif stat.get("http_fallback"):
             status_text = "[yellow]HTTP (SSL Failed)[/yellow]"
         elif stat.get("https_upgrade_recommended"):

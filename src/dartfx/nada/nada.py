@@ -947,7 +947,7 @@ class NadaServer(BaseModel):
     user_agent: str = Field(
         default=f"Mozilla/5.0 (compatible; dartfx-nada/{__version__}; +https://github.com/DataArtifex/nada-toolkit)"
     )
-    ssl_verify: bool = True
+    ssl_verify: bool | str = True
     version: int | None = None
 
     def __init__(
@@ -995,6 +995,13 @@ class NadaServer(BaseModel):
             env_ua = os.environ.get("NADA_USER_AGENT") or os.environ.get("DARTFX_NADA_USER_AGENT")
             if env_ua:
                 kwargs["user_agent"] = env_ua.strip()
+
+        if "ssl_verify" not in kwargs and server_inst.url.startswith("https://"):
+            from dartfx.nada.harvester import get_ca_bundle_for_host
+
+            cached_bundle = get_ca_bundle_for_host(server_inst.clean_hostname)
+            if cached_bundle:
+                kwargs["ssl_verify"] = cached_bundle
 
         super().__init__(
             installation=server_inst,
@@ -1080,7 +1087,24 @@ class NadaServer(BaseModel):
         try:
             response = self.session.request(method, url, headers=request_headers, verify=self.ssl_verify, **kwargs)
         except requests.exceptions.SSLError as ssl_err:
-            if url.startswith("https://"):
+            if not url.startswith("https://"):
+                raise
+            response = None
+            err_str = str(ssl_err)
+            if "unable to get local issuer certificate" in err_str:
+                try:
+                    from dartfx.nada.harvester import resolve_aia_intermediate_ca
+
+                    bundle = resolve_aia_intermediate_ca(self.installation.clean_hostname)
+                    if bundle:
+                        self.ssl_verify = str(bundle)
+                        response = self.session.request(
+                            method, url, headers=request_headers, verify=self.ssl_verify, **kwargs
+                        )
+                except Exception:
+                    response = None
+
+            if response is None:
                 http_url = "http://" + url[len("https://") :]
                 logging.warning(f"SSL verification failed for {url}. Attempting HTTP fallback to {http_url}")
                 try:
@@ -1088,8 +1112,8 @@ class NadaServer(BaseModel):
                     self.installation.scheme = "http"
                 except Exception:
                     raise ssl_err from None
-            else:
-                raise
+
+        assert response is not None
         actual_return_type = return_type or self.on_api_success_return
 
         if response.status_code == success:

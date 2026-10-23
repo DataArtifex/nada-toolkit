@@ -1060,3 +1060,76 @@ def test_display_server_stats_shows_unresolvable_diagnostics(monkeypatch, capsys
     assert "Catalog Retired (410)" in captured_md
     assert "1/5 online (4 restricted/offline)" in captured_md
     assert "42 total studies indexed" in captured_md
+
+
+def test_get_ca_bundle_for_host(tmp_path: Path) -> None:
+    from dartfx.nada.harvester import get_ca_bundle_for_host
+
+    # When file does not exist
+    assert get_ca_bundle_for_host("test.server.org", cache_dir=tmp_path) is None
+
+    # When file exists and non-empty
+    bundle_file = tmp_path / "test.server.org.pem"
+    bundle_file.write_text("-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----", encoding="utf-8")
+    assert get_ca_bundle_for_host("test.server.org", cache_dir=tmp_path) == str(bundle_file)
+
+
+def test_resolve_aia_intermediate_ca(tmp_path: Path, monkeypatch) -> None:
+    from dartfx.nada.harvester import resolve_aia_intermediate_ca
+
+    # Mock socket and ssl to return a mock DER certificate with an AIA URL
+    mock_der = b"some_der_bytes\x00http://pki.example.org/intermediate.crt\x00more_bytes"
+
+    mock_sock = MagicMock()
+    mock_ssock = MagicMock()
+    mock_ssock.getpeercert.return_value = mock_der
+    mock_sock.__enter__.return_value = mock_sock
+    mock_ssock.__enter__.return_value = mock_ssock
+
+    monkeypatch.setattr("socket.create_connection", lambda *_args, **_kwargs: mock_sock)
+    mock_ctx = MagicMock()
+    mock_ctx.wrap_socket.return_value = mock_ssock
+    monkeypatch.setattr("ssl.create_default_context", lambda: mock_ctx)
+
+    # Mock requests.get to return a PEM cert for the AIA URL
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.content = b"-----BEGIN CERTIFICATE-----\nMOCK_INTERMEDIATE\n-----END CERTIFICATE-----"
+    monkeypatch.setattr("requests.get", lambda _url, **_kwargs: mock_resp)
+
+    bundle_path = resolve_aia_intermediate_ca("test.nada.org", cache_dir=tmp_path)
+    assert bundle_path is not None
+    assert bundle_path.exists()
+    content = bundle_path.read_text(encoding="utf-8")
+    assert "MOCK_INTERMEDIATE" in content
+
+
+def test_display_server_stats_shows_aia_fixed(monkeypatch) -> None:
+    from dartfx.nada.harvester import display_server_stats
+    from dartfx.nada.nada import ServerInstallation
+
+    inst = ServerInstallation(
+        name="Test AIA Server",
+        hostname="anads.ansd.sn",
+        url="https://anads.ansd.sn",
+        country="Senegal",
+        country_code="SN",
+    )
+
+    stat = {
+        "is_nada": True,
+        "studies": 120,
+        "collections": 5,
+        "version": "5",
+        "latency_seconds": 1.2,
+        "aia_repaired": True,
+        "error": None,
+    }
+
+    monkeypatch.setattr("dartfx.nada.harvester.fetch_nada_installations", lambda **_kwargs: [inst])
+    monkeypatch.setattr("dartfx.nada.harvester.fetch_server_stats", lambda *_args, **_kwargs: stat)
+
+    records = display_server_stats(server="anads.ansd.sn", format="json")
+    assert len(records) == 1
+    assert records[0]["status"] == "Online (AIA Fixed)"
+    assert records[0]["aia_repaired"] is True
