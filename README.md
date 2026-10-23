@@ -194,7 +194,8 @@ The `stats` table displays latency ratings, PHP runtime risk indicators, and dia
   - **`Hidden`**: Headers stripped by reverse proxy, CDN, or `expose_php = Off`.
   - **`~5.x-7.x`** (Dim Red): Inferred legacy runtime when running NADA v4 with hidden banners.
 - **`Online`**: Reachable NADA server returning active study counts.
-- **`Cached (24h)`**: Cached metrics loaded from local `.stats_cache.json` (use `--refresh` to force live checks).
+- **`Online (Cached)`**: Cached metrics loaded from local `.stats_cache.json` (use `--refresh` to force live checks).
+- **`Online (AIA Fixed)`**: Missing intermediate CA certificate fetched and verified securely via Authority Information Access (AIA).
 - **`Online (HTTPS Avail)`**: Server currently reached over HTTP, but HTTPS is fully available and recommended for upgrade.
 - **`HTTP (SSL Failed)`**: Server failed SSL/TLS verification on HTTPS, but study counts and catalog access were successfully recovered via HTTP port 80.
 - **`Not NADA Server`**: The domain is active but does not run a valid NADA API or catalog endpoint (e.g. portal redirects, general government websites).

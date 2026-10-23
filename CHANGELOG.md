@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tri-State Availability Differentiated Stats Summary** (`dartfx-nada stats`):
   - Added `classify_server_availability()` categorizing repositories into three semantic tiers: `accessible` (open public NADA catalogs), `restricted` (active endpoints protected by Cloudflare challenges, perimeter firewalls, or token authentication), and `offline` (unreachable, decommissioned, DNS failure, timeout, or server error).
   - Enhanced stats summary captions in Rich console tables and Markdown reports to display tri-state totals: e.g. `Total: 38 accessible • 7 restricted • 30 offline/inactive (75 servers) • 67,936 studies indexed`.
+  - Changed cache-hit status indicator from `Cached (24h)` to `Online (Cached)` for clearer semantic consistency with other online states.
   - Added structured `"availability"` field to JSON (`--json`) and CSV (`--format csv`) exports.
 - **Authority Information Access (AIA) Intermediate CA Certificate Chasing** (`dartfx-nada stats`, `NadaServer`):
   - Added automated RFC 5280 Authority Information Access (AIA) intermediate CA certificate fetching via `resolve_aia_intermediate_ca()` and `get_ca_bundle_for_host()`.

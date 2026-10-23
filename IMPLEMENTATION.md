@@ -47,7 +47,8 @@ The `dartfx-nada stats` command reports concise, color-coded health badges in th
 | Status Badge | Category | Technical Cause & Meaning |
 | :--- | :--- | :--- |
 | `Online` | Operational | Valid NADA API server responded with study counts. |
-| `Cached (24h)` | Cache Hit | Results loaded from local `.stats_cache.json` within the 24-hour TTL. |
+| `Online (Cached)` | Cache Hit | Results loaded from local `.stats_cache.json` within the 24-hour TTL. |
+| `Online (AIA Fixed)` | Operational / Repaired | Missing intermediate CA certificate fetched and verified via Authority Information Access (AIA). |
 | `Online (HTTPS Avail)` | Operational / Advisory | Server is queried over HTTP, but HTTPS is fully functional and recommended. |
 | `HTTP (SSL Failed)` | Fallback | Primary HTTPS failed SSL certificate verification, but study counts were recovered via HTTP port 80. |
 | `SSL Incomplete Chain` | SSL/TLS | The server serves only its leaf certificate without the intermediate CA bundle (*see detailed explanation below*). |

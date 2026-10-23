@@ -9,7 +9,7 @@ The **Status** column classifies repository endpoints into semantic, actionable 
 | Status Badge | Category | Availability Tier | Description |
 | :--- | :--- | :--- | :--- |
 | `Online` | Operational | Accessible | Valid NADA API server responded with study counts. |
-| `Cached (24h)` | Cache Hit | Accessible | Metrics loaded from local `.stats_cache.json` within the 24-hour TTL. Use `--refresh` to bypass. |
+| `Online (Cached)` | Cache Hit | Accessible | Metrics loaded from local `.stats_cache.json` within the 24-hour TTL. Use `--refresh` to bypass. |
 | `Online (AIA Fixed)` | Operational / Repaired | Accessible | Missing intermediate CA certificate fetched and verified via Authority Information Access (AIA). |
 | `Online (HTTPS Avail)` | Operational / Advisory | Accessible | Server is currently reached over HTTP, but HTTPS is fully functional and recommended. |
 | `HTTP (SSL Failed)` | Fallback | Accessible | Primary HTTPS failed SSL certificate verification, but recovered via HTTP port 80. |

@@ -1074,7 +1074,7 @@ def test_classify_server_availability() -> None:
     # Accessible
     assert classify_server_availability(status="Online", is_nada=True) == "accessible"
     assert classify_server_availability(status="Online (AIA Fixed)", is_nada=True) == "accessible"
-    assert classify_server_availability(status="Cached (24h)", is_nada=True) == "accessible"
+    assert classify_server_availability(status="Online (Cached)", is_nada=True) == "accessible"
     assert classify_server_availability(status="HTTP (SSL Failed)", is_nada=True) == "accessible"
 
     # Restricted
