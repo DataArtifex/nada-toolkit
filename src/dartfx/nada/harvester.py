@@ -910,7 +910,7 @@ def format_response_latency(
         return f"[yellow]🔒 {lat:.1f}s[/yellow]"
 
     if lat < 3.0:
-        return f"[bold green]⚡ {lat:.1f}s[/bold green]"
+        return f"[bold green]🟢⚡ {lat:.1f}s[/bold green]"
     elif lat <= 8.0:
         return f"[green]🟢 {lat:.1f}s[/green]"
     elif lat <= 15.0:

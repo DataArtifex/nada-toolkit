@@ -65,7 +65,7 @@ Added
 
 * **Server Statistics & Diagnostics Subsystem** (``dartfx-nada stats``):
   * Multi-threaded concurrent query fetching via ``ThreadPoolExecutor`` for low response latency.
-  * Semantic color-coded performance tier badges (``⚡ <3s Fast``, ``🟢 3–8s Normal``, ``🟡 8–15s Moderate``, ``🔴 >15s Degraded``, ``🔒 Protected``, ``❌ Failed``).
+  * Semantic color-coded performance tier badges (``🟢⚡ <3s Fast``, ``🟢 3–8s Normal``, ``🟡 8–15s Moderate``, ``🔴 >15s Degraded``, ``🔒 Protected``, ``❌ Failed``).
   * Deep SSL/TLS diagnostics isolating missing intermediate CA chains, expired certificates, hostname mismatches, and self-signed certificates.
 
 * **Modern CLI & Tooling Architecture**:

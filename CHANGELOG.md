@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `classify_server_availability()` categorizing repositories into three semantic tiers: `accessible` (open public NADA catalogs), `restricted` (active endpoints protected by Cloudflare challenges, perimeter firewalls, or token authentication), and `offline` (unreachable, decommissioned, DNS failure, timeout, or server error).
   - Enhanced stats summary captions in Rich console tables and Markdown reports to display tri-state totals: e.g. `Total: 38 accessible • 7 restricted • 30 offline/inactive (75 servers) • 67,936 studies indexed`.
   - Changed cache-hit status indicator from `Cached (24h)` to `Online (Cached)` for clearer semantic consistency with other online states.
+  - Updated fast latency performance tier badge (< 3.0s) from `⚡` to `🟢⚡` to provide clear green visual context with lightning suffix.
   - Added structured `"availability"` field to JSON (`--json`) and CSV (`--format csv`) exports.
 - **Authority Information Access (AIA) Intermediate CA Certificate Chasing** (`dartfx-nada stats`, `NadaServer`):
   - Added automated RFC 5280 Authority Information Access (AIA) intermediate CA certificate fetching via `resolve_aia_intermediate_ca()` and `get_ca_bundle_for_host()`.
@@ -129,7 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Search query validation via `SearchParameters` Pydantic model.
 - **Server Statistics & Diagnostics Subsystem** (`dartfx-nada stats`):
   - Multi-threaded concurrent query fetching via `ThreadPoolExecutor` for low response latency.
-  - Semantic color-coded performance tier badges (`⚡ <3s Fast`, `🟢 3–8s Normal`, `🟡 8–15s Moderate`, `🔴 >15s Degraded`, `🔒 Protected`, `❌ Failed`).
+  - Semantic color-coded performance tier badges (`🟢⚡ <3s Fast`, `🟢 3–8s Normal`, `🟡 8–15s Moderate`, `🔴 >15s Degraded`, `🔒 Protected`, `❌ Failed`).
   - Deep SSL/TLS diagnostics isolating missing intermediate CA chains, expired certificates, hostname mismatches, and self-signed certificates.
 - **Modern CLI & Tooling Architecture**:
   - Full-featured CLI powered by Typer and Rich with smart dash-to-underscore option normalization.

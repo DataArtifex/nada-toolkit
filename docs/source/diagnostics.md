@@ -119,7 +119,7 @@ Response times for server checks are classified into color-coded performance tie
 
 | Tier | Latency | Badge | Meaning |
 | :--- | :--- | :--- | :--- |
-| **Fast** | `< 3.0s` | `⚡ 1.2s` | Excellent API responsiveness |
+| **Fast** | `< 3.0s` | `🟢⚡ 1.2s` | Excellent API responsiveness |
 | **Normal** | `3.0s – 8.0s` | `🟢 4.5s` | Healthy catalog response time |
 | **Moderate** | `8.0s – 15.0s` | `🟡 9.2s` | High server load or geographic latency |
 | **Degraded** | `> 15.0s` | `🔴 18.0s` | Severe performance degradation or near-timeout |

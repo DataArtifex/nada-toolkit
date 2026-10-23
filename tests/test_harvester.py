@@ -199,7 +199,7 @@ def test_is_parked_or_domain_sale() -> None:
 def test_format_response_latency() -> None:
     assert format_response_latency(None) == "-"
     fast_str = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", format_response_latency(1.2))
-    assert "⚡" in fast_str
+    assert "🟢⚡" in fast_str
     assert "1.2s" in fast_str
 
     normal_str = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", format_response_latency(4.5))

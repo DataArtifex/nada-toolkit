@@ -36,7 +36,7 @@ NADA (National Data Archive) is an open-source data cataloging system widely use
   - Automated API token discovery (`.api_token`, `.nada_tokens.json`, environment variables).
   - Intelligent Error Classification Engine categorizing network, authentication, restricted study, WAF, and SSL/TLS diagnostics.
   - Comprehensive error persistence in `.manifest.json` with automatic retry of recoverable failures on consecutive syncs.
-- 📊 **Server Diagnostics & Performance Latency**: Parallel query latency benchmarking with semantic color badges (`⚡`, `🟢`, `🟡`, `🔴`, `🔒`, `❌`).
+- 📊 **Server Diagnostics & Performance Latency**: Parallel query latency benchmarking with semantic color badges (`🟢⚡`, `🟢`, `🟡`, `🔴`, `🔒`, `❌`).
 - 🔐 **Cryptographic Resilience & Protocol Intelligence**: Automated RFC 5280 Authority Information Access (AIA) intermediate CA chasing to repair incomplete TLS certificate chains securely over verified HTTPS, with bidirectional HTTP/HTTPS fallback and upgrade probing.
 - 🛡️ **Modern Architecture**: Python 3.12+, Pydantic v2 data models, Typer CLI, and Rich terminal visualizers.
 
