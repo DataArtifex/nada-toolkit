@@ -139,7 +139,8 @@ def list_installations(
 
     for inst in all_installations:
         host = inst.clean_hostname or "N/A"
-        clickable_host = f"[link={inst.url}]{host}[/link]" if inst.url else host
+        link_url = inst.catalog_url or inst.url
+        clickable_host = f"[link={link_url}]{host}[/link]" if link_url else host
         table.add_row(
             inst.name or "N/A",
             clickable_host,
@@ -234,7 +235,8 @@ def info(
     if server.installation.name and server.installation.name != server.installation.clean_hostname:
         table.add_row("Organization / Name", server.installation.name)
     table.add_row("Server Hostname", server.installation.clean_hostname)
-    table.add_row("Catalog Base URL", f"[link={server.url}]{server.url}[/link]")
+    catalog_endpoint = server.installation.catalog_url or server.url
+    table.add_row("Catalog Base URL", f"[link={catalog_endpoint}]{catalog_endpoint}[/link]")
     table.add_row("Detected Version", f"v{ver}")
     table.add_row(
         "Total Studies",

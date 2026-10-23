@@ -1324,7 +1324,8 @@ def display_server_stats(
 
     for inst, stat in stat_results:
         name_disp = inst.name or inst.clean_hostname
-        clickable_host = f"[link={inst.url}]{name_disp}[/link]" if inst.url else name_disp
+        link_url = inst.catalog_url or inst.url
+        clickable_host = f"[link={link_url}]{name_disp}[/link]" if link_url else name_disp
         cc = inst.country_code or "-"
         ver_disp = format_version(stat.get("version") or inst.version)
         php_disp = format_php_version(

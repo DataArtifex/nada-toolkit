@@ -796,3 +796,35 @@ def test_display_server_stats_sorting(monkeypatch) -> None:
     assert "Zambia Stats" in rendered_rows[0][0]
     assert "Benin Stats" in rendered_rows[1][0]
     assert "Angola Stats" in rendered_rows[2][0]
+
+
+def test_display_server_stats_links_full_url(monkeypatch) -> None:
+    from dartfx.nada.harvester import display_server_stats
+    from dartfx.nada.nada import ServerInstallation
+
+    mock_insts = [
+        ServerInstallation(
+            name="Togo INSEED",
+            url="http://160.242.193.218/nada",
+            country_code="TG",
+        ),
+    ]
+
+    monkeypatch.setattr("dartfx.nada.harvester.fetch_nada_installations", lambda **_kwargs: mock_insts)
+    monkeypatch.setattr(
+        "dartfx.nada.harvester.fetch_server_stats",
+        lambda **_kwargs: {"is_nada": True, "studies": 15, "latency_seconds": 0.5, "version": "5"},
+    )
+
+    rendered_rows: list[list[str]] = []
+
+    def mock_add_row(_self, *args, **_kwargs):
+        if args and isinstance(args[0], str) and "Togo" in args[0]:
+            rendered_rows.append(list(args))
+
+    monkeypatch.setattr("rich.table.Table.add_row", mock_add_row)
+
+    display_server_stats()
+    assert len(rendered_rows) == 1
+    # Ensure the link retains the full catalog path /nada and does not truncate to hostname
+    assert "[link=http://160.242.193.218/nada]Togo INSEED[/link]" in rendered_rows[0][0]
