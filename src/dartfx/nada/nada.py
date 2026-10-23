@@ -709,7 +709,17 @@ def fetch_nada_installations(
     If fallback_unlisted is True and a specific target_server is requested but not found in the
     registry, a fallback ServerInstallation is synthesized to support private/unlisted servers.
     """
-    directory_urls = urls or NADA_DIRECTORY_URLS
+    if urls is not None:
+        directory_urls = urls
+    elif os.environ.get("NADA_SERVERS_FILE"):
+        directory_urls = [os.environ["NADA_SERVERS_FILE"]]
+    else:
+        # Check if running in a source repository checkout (prefer local development data/servers.yaml)
+        repo_yaml = Path(__file__).resolve().parents[3] / "data" / "servers.yaml"
+        if repo_yaml.is_file():
+            directory_urls = [str(repo_yaml)]
+        else:
+            directory_urls = NADA_DIRECTORY_URLS
     raw_list: list[dict[str, Any]] = []
 
     for entry in directory_urls:

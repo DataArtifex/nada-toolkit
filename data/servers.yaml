@@ -20,18 +20,19 @@
   url: http://160.242.193.218/nada
   country_code: TG
   custodian:
-    name: Institut National de la Statistique et des Etudes Economiques et Démographiques
+    name:
+      Institut National de la Statistique et des Etudes Economiques et Démographiques
       (INSEED)
     url: https://inseed.tg/
   geocoverage:
     level: national
     description: Togo
     geonames:
-    - https://www.geonames.org/2363686/
+      - https://www.geonames.org/2363686/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Agence Nationale de la Statistique et de la Démographie (ANSD)
   url: https://anads.ansd.sn
   country_code: SN
@@ -42,11 +43,11 @@
     level: national
     description: Senegal
     geonames:
-    - https://www.geonames.org/2245662/
+      - https://www.geonames.org/2245662/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Instituto Nacional de Estadística (INE)
   url: https://anda.ine.gob.bo
   country_code: BO
@@ -54,11 +55,11 @@
     level: national
     description: Bolivia
     geonames:
-    - https://www.geonames.org/3923057/
+      - https://www.geonames.org/3923057/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Instituto Nacional de Estadistica y Censos (INEC)
   url: https://anda.inec.gob.ec/anda
   country_code: EC
@@ -66,11 +67,11 @@
     level: national
     description: Ecuador
     geonames:
-    - https://www.geonames.org/3658394/
+      - https://www.geonames.org/3658394/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Oficina Nacional de Estadistica (ONE)
   url: https://anda.one.gob.do
   country_code: DO
@@ -78,11 +79,11 @@
     level: national
     description: Dominican Republic
     geonames:
-    - https://www.geonames.org/3508796/
+      - https://www.geonames.org/3508796/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Instituto Nacional de Estatística (INE)
   url: https://andine.ine.gov.ao/nada
   country_code: AO
@@ -90,11 +91,11 @@
     level: national
     description: Angola
     geonames:
-    - https://www.geonames.org/3351879/
+      - https://www.geonames.org/3351879/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Multi-Country Studies Data Archive (WHO)
   url: https://apps.who.int/healthinfo/systems/surveydata
   country_code: null
@@ -107,9 +108,9 @@
     description: Worldwide
     geonames: []
   domains:
-  - health
-  - epidemiology
-  - public-health
+    - health
+    - epidemiology
+    - public-health
 - name: Statistics Botswana
   url: http://botswana.microdatahub.com
   country_code: BW
@@ -117,11 +118,11 @@
     level: national
     description: Botswana
     geonames:
-    - https://www.geonames.org/933860/
+      - https://www.geonames.org/933860/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: International Household Survey Network (IHSN)
   url: https://catalog.ihsn.org
   country_code: null
@@ -133,9 +134,9 @@
     description: Worldwide
     geonames: []
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Census Digital Library
   url: https://censusindia.gov.in/nada
   country_code: IN
@@ -147,11 +148,11 @@
     level: national
     description: India
     geonames:
-    - https://www.geonames.org/1269750/
+      - https://www.geonames.org/1269750/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Central Data Catalog
   url: https://censusinfo.capmas.gov.eg/metadata-en-v4.2
   country_code: EG
@@ -163,11 +164,11 @@
     level: national
     description: Egypt
     geonames:
-    - https://www.geonames.org/357994/
+      - https://www.geonames.org/357994/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: IFAKARA Health Institute
   url: https://data.ihi.or.tz
   country_code: TZ
@@ -175,11 +176,11 @@
     level: national
     description: Tanzania
     geonames:
-    - https://www.geonames.org/149590/
+      - https://www.geonames.org/149590/
   domains:
-  - health
-  - biomedical
-  - epidemiology
+    - health
+    - biomedical
+    - epidemiology
 - name: Institut national d'études démographiques (INED)
   url: https://data.ined.fr
   country_code: FR
@@ -191,11 +192,11 @@
     level: national
     description: France
     geonames:
-    - https://www.geonames.org/3017382/
+      - https://www.geonames.org/3017382/
   domains:
-  - demography
-  - population-studies
-  - fertility-mortality
+    - demography
+    - population-studies
+    - fertility-mortality
 - name: Swiss national science foundation (FORS)
   url: https://devisu.forscenter.ch
   country_code: CH
@@ -207,11 +208,11 @@
     level: national
     description: Switzerland
     geonames:
-    - https://www.geonames.org/2658434/
+      - https://www.geonames.org/2658434/
   domains:
-  - social-sciences
-  - politics
-  - surveys
+    - social-sciences
+    - politics
+    - surveys
 - name: INEI Microdatos Peru
   url: https://iinei.inei.gob.pe/microdatos
   country_code: PE
@@ -223,11 +224,11 @@
     level: national
     description: Peru
     geonames:
-    - https://www.geonames.org/3932488/
+      - https://www.geonames.org/3932488/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: INDEPTH Network
   url: https://indepth-ishare.org
   country_code: null
@@ -235,11 +236,11 @@
     level: regional
     description: Africa
     geonames:
-    - https://www.geonames.org/6255146/
+      - https://www.geonames.org/6255146/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Statistics South Africa (Stats SA)
   url: https://interactive.statssa.gov.za
   country_code: ZA
@@ -250,11 +251,11 @@
     level: national
     description: South Africa
     geonames:
-    - https://www.geonames.org/953987/
+      - https://www.geonames.org/953987/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Millennium Challenge Corporation
   url: https://mcc.icpsr.umich.edu/evaluations/index.php/catalog
   country_code: US
@@ -266,23 +267,23 @@
     level: national
     description: United States
     geonames:
-    - https://www.geonames.org/6252001/
+      - https://www.geonames.org/6252001/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Statistical Committee of the Republic of Armenia
-  url: http://microdata.armstat.am
+  url: https://microdata.armstat.am
   country_code: AM
   geocoverage:
     level: national
     description: Armenia
     geonames:
-    - https://www.geonames.org/174982/
+      - https://www.geonames.org/174982/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Badan Pusat Statistik (BPS)
   url: https://microdata.bps.go.id/mikrodata
   country_code: ID
@@ -290,11 +291,11 @@
     level: national
     description: Indonesia
     geonames:
-    - https://www.geonames.org/1643084/
+      - https://www.geonames.org/1643084/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Ethiopian Statistics Service
   url: https://microdata.ess.gov.et
   country_code: ET
@@ -305,11 +306,11 @@
     level: national
     description: Ethiopia
     geonames:
-    - https://www.geonames.org/337996/
+      - https://www.geonames.org/337996/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Food and Agriculture Organization (FAO)
   url: https://microdata.fao.org
   country_code: null
@@ -322,9 +323,9 @@
     description: Worldwide
     geonames: []
   domains:
-  - agriculture
-  - food-security
-  - rural-development
+    - agriculture
+    - food-security
+    - rural-development
 - name: Gambia Bureau of Statistics (GBoS)
   url: https://microdata.gbosdata.org
   country_code: GM
@@ -335,12 +336,12 @@
     level: national
     description: Gambia
     geonames:
-    - https://www.geonames.org/2413451/
+      - https://www.geonames.org/2413451/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
-  - agriculture
+    - official-statistics
+    - socio-economic
+    - census
+    - agriculture
 - name: Ministry of Statistics and Programme Implementation (MOSPI)
   url: http://microdata.gov.in/nada43
   country_code: IN
@@ -348,11 +349,11 @@
     level: national
     description: India
     geonames:
-    - https://www.geonames.org/1269750/
+      - https://www.geonames.org/1269750/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Institut National de la Statistique et de la Démographie (INSD)
   url: https://microdata.insd.bf
   country_code: BF
@@ -363,11 +364,11 @@
     level: national
     description: Burkina Faso
     geonames:
-    - https://www.geonames.org/2361809/
+      - https://www.geonames.org/2361809/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Institut National de la Statistique (INS)
   url: https://microdata.insguinee.org
   country_code: GN
@@ -378,12 +379,12 @@
     level: national
     description: Guinea
     geonames:
-    - https://www.geonames.org/2420477/
+      - https://www.geonames.org/2420477/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
-  - demography
+    - official-statistics
+    - socio-economic
+    - census
+    - demography
 - name: Institut National de la Statistique (INSTAT)
   url: https://microdata.instat.ml
   country_code: ML
@@ -394,11 +395,11 @@
     level: national
     description: Mali
     geonames:
-    - https://www.geonames.org/2453866/
+      - https://www.geonames.org/2453866/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Liberia Institute of Statistics & Geo-Information Services (LISGIS)
   url: https://microdata.lisgislr.org
   country_code: LR
@@ -410,11 +411,11 @@
     level: national
     description: Liberia
     geonames:
-    - https://www.geonames.org/2275384/
+      - https://www.geonames.org/2275384/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: National Bureau of Statistics (NBS)
   url: https://microdata.nbs.go.tz
   country_code: TZ
@@ -425,11 +426,11 @@
     level: national
     description: Tanzania
     geonames:
-    - https://www.geonames.org/149590/
+      - https://www.geonames.org/149590/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: National Bureau of Statistics (NBS)
   url: https://microdata.nigerianstat.gov.ng
   country_code: NG
@@ -440,11 +441,11 @@
     level: national
     description: Nigeria
     geonames:
-    - https://www.geonames.org/2328926/
+      - https://www.geonames.org/2328926/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: National Institute of Statistics (NIS)
   url: https://microdata.nis.gov.kh
   country_code: KH
@@ -452,11 +453,11 @@
     level: national
     description: Cambodia
     geonames:
-    - https://www.geonames.org/1831722/
+      - https://www.geonames.org/1831722/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: National Statistics Office (NSO)
   url: https://microdata.nsonepal.gov.np
   country_code: NP
@@ -467,11 +468,11 @@
     level: national
     description: Nepal
     geonames:
-    - https://www.geonames.org/1282988/
+      - https://www.geonames.org/1282988/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Pacific Data Hub
   url: https://microdata.pacificdata.org
   country_code: VU
@@ -479,23 +480,23 @@
     level: national
     description: Pacific Islands
     geonames:
-    - https://www.geonames.org/2134431/
+      - https://www.geonames.org/2134431/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: National Institute of Statistics Rwanda (NISR)
-  url: http://microdata.statistics.gov.rw
+  url: https://microdata.statistics.gov.rw
   country_code: RW
   geocoverage:
     level: national
     description: Rwanda
     geonames:
-    - https://www.geonames.org/49518/
+      - https://www.geonames.org/49518/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Statistics Sierra Leone
   url: https://microdata.statistics.sl
   country_code: SL
@@ -506,11 +507,11 @@
     level: national
     description: Sierra Leone
     geonames:
-    - https://www.geonames.org/2403846/
+      - https://www.geonames.org/2403846/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Ghana Statistical Service (GSS)
   url: https://microdata.statsghana.gov.gh
   country_code: GH
@@ -521,12 +522,12 @@
     level: national
     description: Ghana
     geonames:
-    - https://www.geonames.org/2302357/
+      - https://www.geonames.org/2302357/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
-  - demography
+    - official-statistics
+    - socio-economic
+    - census
+    - demography
 - name: Uganda Bureau of Statistics (UBoS)
   url: https://microdata.ubos.org:7070
   country_code: UG
@@ -534,11 +535,11 @@
     level: national
     description: Uganda
     geonames:
-    - https://www.geonames.org/226074/
+      - https://www.geonames.org/226074/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: UNHCR Microdata Library
   url: https://microdata.unhcr.org
   country_code: null
@@ -551,10 +552,10 @@
     description: Worldwide
     geonames: []
   domains:
-  - forced-displacement
-  - refugees
-  - humanitarian
-  - migration
+    - forced-displacement
+    - refugees
+    - humanitarian
+    - migration
 - name: The World Bank - Microdata Library
   url: https://microdata.worldbank.org
   country_code: null
@@ -567,9 +568,9 @@
     description: Worldwide
     geonames: []
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: African Population and Health Research Center, Nairobi
   url: http://microdataportal.aphrc.org
   country_code: KE
@@ -577,11 +578,11 @@
     level: national
     description: Kenya
     geonames:
-    - https://www.geonames.org/192950/
+      - https://www.geonames.org/192950/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Instituto Nacional de Estatistica (INE)
   url: http://mozdata.microdatahub.com
   country_code: MZ
@@ -589,11 +590,11 @@
     level: national
     description: Mozambique
     geonames:
-    - https://www.geonames.org/1036973/
+      - https://www.geonames.org/1036973/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Agence Nationale de la Statistique (ANStat)
   url: https://nada.anstat.ci
   country_code: CI
@@ -604,11 +605,11 @@
     level: national
     description: Côte d'Ivoire
     geonames:
-    - https://www.geonames.org/2287781/
+      - https://www.geonames.org/2287781/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Central Bank of Nigeria (CBN)
   url: https://nada.cbn.gov.ng
   country_code: NG
@@ -619,11 +620,11 @@
     level: national
     description: Nigeria
     geonames:
-    - https://www.geonames.org/2328926/
+      - https://www.geonames.org/2328926/
   domains:
-  - macroeconomics
-  - banking
-  - finance
+    - macroeconomics
+    - banking
+    - finance
 - name: Institut National de la Statistique (INS)
   url: http://nada.ins.tn
   country_code: TN
@@ -631,11 +632,11 @@
     level: national
     description: Tunisia
     geonames:
-    - https://www.geonames.org/2464461/
+      - https://www.geonames.org/2464461/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Institut National de la Statistique et de la Démographie (INSTAD)
   url: https://nada.instad.bj
   country_code: BJ
@@ -646,12 +647,12 @@
     level: national
     description: Benin
     geonames:
-    - https://www.geonames.org/2395170/
+      - https://www.geonames.org/2395170/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
-  - demography
+    - official-statistics
+    - socio-economic
+    - census
+    - demography
 - name: Institut National de la Statistique (INSTAT)
   url: https://nada.instat.mg
   country_code: MG
@@ -663,12 +664,12 @@
     level: national
     description: Madagascar
     geonames:
-    - https://www.geonames.org/1062947/
+      - https://www.geonames.org/1062947/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
-  - demography
+    - official-statistics
+    - socio-economic
+    - census
+    - demography
 - name: Namibia Statistics Agency (NSA)
   url: https://nada.nsa.org.na
   country_code: NA
@@ -676,23 +677,23 @@
     level: national
     description: Namibia
     geonames:
-    - https://www.geonames.org/3355338/
+      - https://www.geonames.org/3355338/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Institut National de la Statistique (INS)
-  url: http://nada.stat.cm
+  url: https://nada.stat.cm
   country_code: CM
   geocoverage:
     level: national
     description: Cameroon
     geonames:
-    - https://www.geonames.org/2233387/
+      - https://www.geonames.org/2233387/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Department of Census and Statistics (DCS)
   url: https://nada.statistics.gov.lk
   country_code: LK
@@ -700,11 +701,11 @@
     level: national
     description: Sri Lanka
     geonames:
-    - https://www.geonames.org/1227603/
+      - https://www.geonames.org/1227603/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Central Statistics Office (CSO)
   url: https://nada.statsmauritius.govmu.org
   country_code: MU
@@ -712,11 +713,11 @@
     level: national
     description: Mauritius
     geonames:
-    - https://www.geonames.org/934292/
+      - https://www.geonames.org/934292/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Uganda Bureau of Statistics (UBOS)
   url: https://nada.ubos.org
   country_code: UG
@@ -727,11 +728,11 @@
     level: national
     description: Uganda
     geonames:
-    - https://www.geonames.org/226074/
+      - https://www.geonames.org/226074/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: University of Cape Coast (UCC)
   url: https://nada.ucc.edu.gh
   country_code: GH
@@ -739,10 +740,10 @@
     level: national
     description: Ghana
     geonames:
-    - https://www.geonames.org/2300680/
+      - https://www.geonames.org/2300680/
   domains:
-  - education
-  - socio-economic
+    - education
+    - socio-economic
 - name: Centre for Sustainable Development (CESDEV)
   url: http://nada.ui.edu.ng
   country_code: NG
@@ -750,11 +751,11 @@
     level: national
     description: Nigeria
     geonames:
-    - https://www.geonames.org/2328926/
+      - https://www.geonames.org/2328926/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Zambia Statistics Agency (ZamStats)
   url: https://nada.zamstats.gov.zm
   country_code: ZM
@@ -766,12 +767,12 @@
     level: national
     description: Zambia
     geonames:
-    - https://www.geonames.org/895949/
+      - https://www.geonames.org/895949/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
-  - living-standards
+    - official-statistics
+    - socio-economic
+    - census
+    - living-standards
 - name: National Statistics Office (NSO)
   url: https://psada.psa.gov.ph
   country_code: PH
@@ -779,11 +780,11 @@
     level: national
     description: Philippines
     geonames:
-    - https://www.geonames.org/1694008/
+      - https://www.geonames.org/1694008/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: BPS Statistics Indonesia (Sirusa)
   url: https://sirusa.bps.go.id
   country_code: ID
@@ -795,11 +796,11 @@
     level: national
     description: Indonesia
     geonames:
-    - https://www.geonames.org/1643084/
+      - https://www.geonames.org/1643084/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Instituto Nacional de Estadística y Censos (INEC)
   url: http://sistemas.inec.cr/pad5
   country_code: CR
@@ -807,11 +808,11 @@
     level: national
     description: Costa Rica
     geonames:
-    - https://www.geonames.org/3624060/
+      - https://www.geonames.org/3624060/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Kenya National Bureau of Statistics (KNBS)
   url: https://statistics.knbs.or.ke/nada
   country_code: KE
@@ -819,11 +820,11 @@
     level: national
     description: Kenya
     geonames:
-    - https://www.geonames.org/192950/
+      - https://www.geonames.org/192950/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: National Statistical Office (NSO)
   url: http://web.nso.mn/nada
   country_code: MN
@@ -831,11 +832,11 @@
     level: national
     description: Mongolia
     geonames:
-    - https://www.geonames.org/2029969/
+      - https://www.geonames.org/2029969/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: National Statistical Office (NSO)
   url: http://web.nso.mn/nadamn
   country_code: MN
@@ -843,11 +844,11 @@
     level: national
     description: Mongolia
     geonames:
-    - https://www.geonames.org/2029969/
+      - https://www.geonames.org/2029969/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Instituto Nacional de Estadística e Informática (INEI)
   url: http://webinei.inei.gob.pe/anda_inei
   country_code: PE
@@ -855,11 +856,11 @@
     level: national
     description: Peru
     geonames:
-    - https://www.geonames.org/3932488/
+      - https://www.geonames.org/3932488/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Data First
   url: https://www.datafirst.uct.ac.za/dataportal
   country_code: null
@@ -871,22 +872,22 @@
     level: regional
     description: Africa
     geonames:
-    - https://www.geonames.org/6255146/
+      - https://www.geonames.org/6255146/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Economics Research Forum
-  url: http://www.erfdataportal.com
+  url: https://www.erfdataportal.com
   country_code: null
   geocoverage:
     level: global
     description: Worldwide
     geonames: []
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: ILO Survey Catalogue
   url: https://www.ilo.org/surveyLib
   country_code: null
@@ -899,9 +900,9 @@
     description: Worldwide
     geonames: []
   domains:
-  - labor
-  - employment
-  - social-security
+    - labor
+    - employment
+    - social-security
 - name: ILO Central Microdata Repository
   url: http://www.ilo.org/surveydata
   country_code: CH
@@ -914,9 +915,9 @@
     description: Worldwide
     geonames: []
   domains:
-  - labor
-  - employment
-  - social-security
+    - labor
+    - employment
+    - social-security
 - name: Instituto Nacional de Estatística (INE)
   url: https://www.ine.cv/dircaboverde
   country_code: CV
@@ -928,12 +929,12 @@
     level: national
     description: Cabo Verde
     geonames:
-    - https://www.geonames.org/3374766/
+      - https://www.geonames.org/3374766/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
-  - demography
+    - official-statistics
+    - socio-economic
+    - census
+    - demography
 - name: Instituto Nacional de Estadística (INE)
   url: http://www.ine.gub.uy:82/Anda4
   country_code: UY
@@ -941,11 +942,11 @@
     level: national
     description: Uruguay
     geonames:
-    - https://www.geonames.org/3439705/
+      - https://www.geonames.org/3439705/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Instituto Nacional de Estadística y Geografía (INEGI)
   url: http://www.inegi.org.mx/rnm
   country_code: MX
@@ -953,11 +954,11 @@
     level: national
     description: Mexico
     geonames:
-    - https://www.geonames.org/3996063/
+      - https://www.geonames.org/3996063/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Institut de Statistiques et d’Etudes Economiques du Burundi
   url: http://www.isteebu.bi/nada
   country_code: BI
@@ -965,11 +966,11 @@
     level: national
     description: Burundi
     geonames:
-    - https://www.geonames.org/433561/
+      - https://www.geonames.org/433561/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Zimbabwe National Statistic Agency (ZIMSTAT)
   url: http://www.nada.zimstat.co.zw/nada
   country_code: ZW
@@ -977,11 +978,11 @@
     level: national
     description: Zimbabwe
     geonames:
-    - https://www.geonames.org/878675/
+      - https://www.geonames.org/878675/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: National Bureau of Statistics (NBS)
   url: http://www.nsb.gov.bt/nada4
   country_code: BT
@@ -989,11 +990,11 @@
     level: national
     description: Bhutan
     geonames:
-    - https://www.geonames.org/1252634/
+      - https://www.geonames.org/1252634/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Palestine Central Bureau of Statistics (Arabic Language)
   url: http://www.pcbs.gov.ps/PCBS-Metadata-ar-v4.3
   country_code: PS
@@ -1001,11 +1002,11 @@
     level: national
     description: Palestine
     geonames:
-    - https://www.geonames.org/6254930/
+      - https://www.geonames.org/6254930/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Palestinian Central Bureau of Statistics (English Language)
   url: http://www.pcbs.gov.ps/PCBS-Metadata-en-v4.3
   country_code: PS
@@ -1013,11 +1014,11 @@
     level: national
     description: Palestine
     geonames:
-    - https://www.geonames.org/6254930/
+      - https://www.geonames.org/6254930/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Instituto Nacional de Estatística (INE)
   url: http://www.stat-guinebissau.com/nada41
   country_code: GW
@@ -1025,11 +1026,11 @@
     level: national
     description: Guinea-Bissau
     geonames:
-    - https://www.geonames.org/2372248/
+      - https://www.geonames.org/2372248/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Institut National de la Statistique (INS)
   url: https://www.stat-niger.org/anado
   country_code: NE
@@ -1037,11 +1038,11 @@
     level: national
     description: Niger
     geonames:
-    - https://www.geonames.org/2440489/
+      - https://www.geonames.org/2440489/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
 - name: Central Statistics Office
   url: http://yemen-cso.microdatahub.com
   country_code: YE
@@ -1049,8 +1050,8 @@
     level: national
     description: Yemen
     geonames:
-    - https://www.geonames.org/69543/
+      - https://www.geonames.org/69543/
   domains:
-  - official-statistics
-  - socio-economic
-  - census
+    - official-statistics
+    - socio-economic
+    - census
