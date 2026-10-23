@@ -241,7 +241,9 @@ def normalize_formats(formats_input: str | list[str] | None) -> list[str]:
 
 
 DEFAULT_REQUEST_HEADERS: dict[str, str] = {
-    "User-Agent": f"dartfx-nada/{__version__} (Research Harvester; +https://github.com/DataArtifex/nada-toolkit)",
+    "User-Agent": (
+        f"Mozilla/5.0 (compatible; dartfx-nada/{__version__}; +https://github.com/DataArtifex/nada-toolkit)"
+    ),
     "Accept": "application/json, text/plain, */*",
 }
 
@@ -370,6 +372,9 @@ def get_request_headers(
 ) -> dict[str, str]:
     """Return standard headers with User-Agent and resolved NADA API key."""
     headers = dict(DEFAULT_REQUEST_HEADERS)
+    custom_ua = os.environ.get("NADA_USER_AGENT") or os.environ.get("DARTFX_NADA_USER_AGENT")
+    if custom_ua:
+        headers["User-Agent"] = custom_ua.strip()
     resolved_token = resolve_server_token(host, repo_root=repo_root, explicit_token=api_token)
     if resolved_token:
         headers["X-API-KEY"] = resolved_token.strip()
@@ -439,20 +444,39 @@ def classify_harvest_error(reason: str | None) -> str:
         return "HTTP 401: Authentication Required (API Token)"
 
     # 3. Restricted Study / Forbidden
+    if any(
+        k in r_low
+        for k in [
+            "perimeter url block",
+            "perimeter block",
+            "geo/ip",
+            "geographic restriction",
+            "geographically restricted",
+            "country block",
+            "blocked by ip",
+        ]
+    ):
+        return "HTTP 403: Perimeter Block (Geo/IP)"
+
     if any(k in r_low for k in ["restricted", "permission denied", "requires authentication"]):
         return "HTTP 403: Restricted Study (Authentication Required)"
 
     # 4. Bot Protection / WAF
-    if any(k in r_low for k in ["cloudflare", "bot protection", "waf", "captcha", "ddos-guard", "incapsula"]):
+    if any(
+        k in r_low
+        for k in ["cloudflare", "bot protection", "waf", "captcha", "ddos-guard", "incapsula", "imperva", "awswaf"]
+    ):
         return "HTTP 403: Forbidden / Bot Protection (WAF)"
 
     if "403" in r_low or "forbidden" in r_low:
         return "HTTP 403: Forbidden"
 
-    # 5. Not Found / Deaccessioned
+    # 5. Not Found / Deaccessioned / Retired
     if "404" in r_low or "not found" in r_low:
         return "HTTP 404: Study / Endpoint Not Found"
-    if "410" in r_low or "deaccessioned" in r_low or "gone" in r_low:
+    if "410" in r_low or "deaccessioned" in r_low or "gone" in r_low or "retired" in r_low:
+        if "catalog" in r_low or "retired" in r_low:
+            return "HTTP 410: Catalog Retired"
         return "HTTP 410: Study Deaccessioned"
 
     # 6. Unprocessable
@@ -460,6 +484,12 @@ def classify_harvest_error(reason: str | None) -> str:
         return "HTTP 422: Unprocessable Entity"
 
     # 7. Server Errors
+    if "502" in r_low or "bad gateway" in r_low:
+        return "HTTP 502: Bad Gateway"
+    if "503" in r_low or "service unavailable" in r_low:
+        return "HTTP 503: Service Unavailable"
+    if "504" in r_low or "gateway timeout" in r_low:
+        return "HTTP 504: Gateway Timeout"
     if any(
         k in r_low
         for k in [
@@ -539,6 +569,25 @@ def abbreviate_error(reason: str | None) -> str:
     if "not a nada server" in r_low or "not nada server" in r_low or "not nada" in r_low:
         return "Not NADA Server"
 
+    # Perimeter Block / Geo/IP
+    if any(
+        k in r_low
+        for k in [
+            "perimeter url block",
+            "perimeter block",
+            "geo/ip",
+            "geographic restriction",
+            "geographically restricted",
+            "country block",
+            "blocked by ip",
+        ]
+    ):
+        return "Perimeter Block (Geo/IP)"
+
+    # Cloudflare Challenge (Interactive Turnstile / JavaScript verification)
+    if any(k in r_low for k in ["cloudflare challenge", "turnstile", "cf-mitigated"]):
+        return "Cloudflare Challenge"
+
     # 1. SSL / TLS Diagnostics
     if "ssl" in r_low or "certificate" in r_low or "cert" in r_low:
         if "hostname" in r_low and ("mismatch" in r_low or "doesn't match" in r_low or "not valid" in r_low):
@@ -589,22 +638,29 @@ def abbreviate_error(reason: str | None) -> str:
     # 5. Authentication / Forbidden
     if "401" in r_low or "unauthorized" in r_low:
         return "Auth Required (401)"
-    if any(k in r_low for k in ["cloudflare", "bot protection", "waf", "captcha", "ddos-guard", "incapsula"]):
+    if any(
+        k in r_low
+        for k in ["cloudflare", "bot protection", "waf", "captcha", "ddos-guard", "incapsula", "imperva", "awswaf"]
+    ):
         return "Bot Protection (WAF)"
     if "403" in r_low or "forbidden" in r_low:
         return "Forbidden (403)"
 
     # 6. HTTP Status Codes
+    if any(k in r_low for k in ["410", "retired", "catalog retired", "deaccessioned", "gone"]):
+        return "Catalog Retired (410)"
     if "404" in r_low or "not found" in r_low:
         return "Not Found (404)"
-    if "500" in r_low or "internal server error" in r_low:
-        return "Server Error (500)"
     if "502" in r_low or "bad gateway" in r_low:
         return "Bad Gateway (502)"
     if "503" in r_low or "service unavailable" in r_low:
         return "Service Unavailable (503)"
     if "504" in r_low or "gateway timeout" in r_low:
         return "Gateway Timeout (504)"
+    if "php server error" in r_low or "php fatal" in r_low:
+        return "PHP Server Error"
+    if "500" in r_low or "internal server error" in r_low:
+        return "Server Error (500)"
     if any(k in r_low for k in ["5xx", "server error"]):
         return "Server Error (5xx)"
 
@@ -958,6 +1014,143 @@ def extract_server_environment(response: requests.Response | None) -> tuple[str 
     return php_version, web_server
 
 
+def _diagnose_probe_error(probes: list[requests.Response]) -> str:
+    """Analyze probe responses to classify why a NADA server could not be resolved."""
+    if not probes:
+        return "Not NADA Server"
+
+    # 1. Perimeter / Geo / IP Block
+    for p in probes:
+        txt = p.text.lower()
+        if any(
+            k in txt
+            for k in [
+                "perimeter url block",
+                "perimeter block",
+                "access denied from your location",
+                "geographic restriction",
+                "geographically restricted",
+                "country block",
+                "access from your country is blocked",
+                "blocked by ip",
+                "ip not allowed",
+                "access denied by security policy",
+            ]
+        ):
+            return "Perimeter Block (Geo/IP)"
+
+    # 2. Cloudflare Challenge (Interactive Turnstile / JavaScript verification)
+    for p in probes:
+        hdr_server = p.headers.get("Server", "").lower()
+        cf_mitigated = p.headers.get("cf-mitigated", "").lower()
+        txt = p.text.lower()
+        if (
+            cf_mitigated == "challenge"
+            or (
+                "cloudflare" in hdr_server
+                and any(
+                    k in txt
+                    for k in [
+                        "just a moment",
+                        "challenge-platform",
+                        "turnstile",
+                        "challenges.cloudflare.com",
+                        "cf-browser-verification",
+                        "attention required! | cloudflare",
+                    ]
+                )
+            )
+            or any(
+                k in txt
+                for k in [
+                    "just a moment...",
+                    "challenges.cloudflare.com",
+                    "turnstile",
+                    "challenge-platform",
+                ]
+            )
+        ):
+            return "Cloudflare Challenge"
+
+    # 3. Bot Protection / WAF / DDoS Mitigation
+    for p in probes:
+        txt = p.text.lower()
+        hdr_server = p.headers.get("Server", "").lower()
+        if p.status_code == 403 and (
+            "cloudflare" in hdr_server
+            or "awselb" in hdr_server
+            or "x-amzn-waf-action" in p.headers
+            or any(
+                k in txt
+                for k in [
+                    "cloudflare",
+                    "waf",
+                    "ddos-guard",
+                    "incapsula",
+                    "imperva",
+                    "awswaf",
+                    "bot protection",
+                    "web application firewall",
+                    "mod_security",
+                    "captcha",
+                ]
+            )
+        ):
+            return "Bot Protection (WAF)"
+
+    # 4. Authentication Required (401)
+    for p in probes:
+        if p.status_code == 401 or any(
+            k in p.text.lower() for k in ["api token required", "authentication required", "unauthorized access"]
+        ):
+            return "Auth Required (401)"
+
+    # 5. Catalog Retired / Decommissioned (410)
+    for p in probes:
+        txt = p.text.lower()
+        if p.status_code == 410 or any(
+            k in txt
+            for k in [
+                "410 gone",
+                "catalog retired",
+                "survey catalog retired",
+                "service decommissioned",
+                "archive retired",
+            ]
+        ):
+            return "Catalog Retired (410)"
+
+    # 6. Server Errors (5xx)
+    for p in probes:
+        if p.status_code == 502:
+            return "Bad Gateway (502)"
+        if p.status_code == 503:
+            return "Service Unavailable (503)"
+        if p.status_code == 504:
+            return "Gateway Timeout (504)"
+        if p.status_code == 500:
+            return "Server Error (500)"
+        if 500 <= p.status_code < 600:
+            return f"Server Error ({p.status_code})"
+
+    # 7. PHP Fatal Error on 200 responses
+    for p in probes:
+        txt = p.text.lower()
+        if "fatal error" in txt or "uncaught error" in txt or "parse error" in txt or "failed opening required" in txt:
+            return "PHP Server Error (500)"
+
+    # 8. Standard 403 Forbidden
+    for p in probes:
+        if p.status_code == 403:
+            return "Forbidden (403)"
+
+    # 9. Endpoint Not Found (404)
+    if all(p.status_code == 404 for p in probes):
+        return "Not Found (404)"
+
+    return "Not NADA Server"
+
+
 def _probe_nada_url(
     base_url: str,
     clean_host: str,
@@ -1052,6 +1245,9 @@ def _probe_nada_url(
                             res["studies"] = len(res_dict)
                 except Exception:
                     pass
+            elif r_search.status_code == 401:
+                res["is_nada"] = True
+                res["requires_token"] = True
 
         # 3. Probe v4 CSV export endpoint
         if not res["is_nada"] and res["error"] != "Domain For Sale":
@@ -1102,18 +1298,21 @@ def _probe_nada_url(
                 pass
 
         if not res["is_nada"] and not res["error"]:
-            for r_probe in [r_search, r_coll, r_v4]:
-                if r_probe is not None and r_probe.status_code == 403:
-                    if any(
-                        k in r_probe.text.lower()
-                        for k in ["cloudflare", "just a moment", "challenge-platform", "waf", "ddos-guard"]
-                    ):
-                        res["error"] = "Bot Protection (WAF)"
+            probes = [r for r in [r_search, r_coll, r_v4] if r is not None]
+            # If all subpath probes returned 404 (or failed), also probe the base URL
+            if not probes or all(p.status_code == 404 for p in probes):
+                try:
+                    r_home = requests.get(base_url, headers=headers, timeout=timeout, allow_redirects=True)
+                    _inspect_resp_env(r_home)
+                    if _is_parked_or_domain_sale(clean_host, r_home):
+                        res["error"] = "Domain For Sale"
                     else:
-                        res["error"] = "Forbidden (403)"
-                    break
+                        probes.append(r_home)
+                except Exception:
+                    pass
+
             if not res["error"]:
-                res["error"] = "Not a NADA server"
+                res["error"] = _diagnose_probe_error(probes)
 
         res["latency_seconds"] = round(time.time() - t0, 2)
 
@@ -1497,6 +1696,16 @@ def display_server_stats(
                 )
             md_lines.append(md_row)
 
+        if len(records) > 1:
+            online_count = sum(1 for r in records if r.get("is_nada"))
+            issues_count = len(records) - online_count
+            total_studies = sum(int(r.get("studies") or 0) for r in records if r.get("is_nada"))
+            md_lines.append("")
+            md_lines.append(
+                f"_Summary: {online_count}/{len(records)} online ({issues_count} restricted/offline) • "
+                f"{total_studies:,} total studies indexed._"
+            )
+
         if out_path:
             out_path.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
             console.print(f"[bold green]✓ Statistics saved to:[/] {out_path}")
@@ -1533,6 +1742,16 @@ def display_server_stats(
         return records
 
     # Default: Rich Table
+    if len(stat_results) > 1:
+        online_count = sum(1 for _, s in stat_results if s.get("is_nada"))
+        issues_count = len(stat_results) - online_count
+        total_studies = sum(int(s.get("studies") or 0) for _, s in stat_results if s.get("is_nada"))
+        table.caption = (
+            f"[bold]Total:[/] {online_count}/{len(stat_results)} online"
+            f" ([yellow]{issues_count} restricted/offline[/yellow])"
+            f" • [cyan]{total_studies:,}[/cyan] studies indexed"
+        )
+
     for _r, (inst, stat) in zip(records, stat_results, strict=False):
         name_disp = inst.name or inst.clean_hostname
         link_url = inst.catalog_url or inst.url
@@ -1555,9 +1774,18 @@ def display_server_stats(
 
         if not is_nada:
             if stat.get("error"):
-                status_text = f"[red]{abbreviate_error(str(stat['error']))}[/red]"
+                abbr = abbreviate_error(str(stat["error"]))
+                abbr_low = abbr.lower()
+                if any(k in abbr_low for k in ["waf", "cloudflare", "perimeter", "auth", "token"]):
+                    status_text = f"[yellow]{abbr}[/yellow]"
+                elif any(k in abbr_low for k in ["retired", "for sale"]):
+                    status_text = f"[magenta]{abbr}[/magenta]"
+                elif "not nada" in abbr_low or "not found" in abbr_low:
+                    status_text = f"[dim red]{abbr}[/dim red]"
+                else:
+                    status_text = f"[red]{abbr}[/red]"
             else:
-                status_text = "[red]Not NADA Server[/red]"
+                status_text = "[dim red]Not NADA Server[/dim red]"
         elif stat.get("http_fallback"):
             status_text = "[yellow]HTTP (SSL Failed)[/yellow]"
         elif stat.get("https_upgrade_recommended"):

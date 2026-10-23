@@ -169,7 +169,11 @@ def test_abbreviate_error() -> None:
     assert abbreviate_error("self-signed certificate") == "SSL Self-Signed Cert"
     assert abbreviate_error("HTTP 401: Unauthorized") == "Auth Required (401)"
     assert abbreviate_error("HTTP 403: Forbidden") == "Forbidden (403)"
-    assert abbreviate_error("Cloudflare challenge") == "Bot Protection (WAF)"
+    assert abbreviate_error("Cloudflare challenge") == "Cloudflare Challenge"
+    assert abbreviate_error("AWS WAF block") == "Bot Protection (WAF)"
+    assert abbreviate_error("Perimeter URL Block") == "Perimeter Block (Geo/IP)"
+    assert abbreviate_error("HTTP 410: Catalog Retired") == "Catalog Retired (410)"
+    assert abbreviate_error("HTTP 503: Service Unavailable") == "Service Unavailable (503)"
     assert abbreviate_error("HTTP 404: Not Found") == "Not Found (404)"
     assert abbreviate_error("HTTP 500: Server Error") == "Server Error (500)"
     assert abbreviate_error("HTTP 502: Bad Gateway") == "Bad Gateway (502)"
@@ -906,3 +910,153 @@ def test_display_server_stats_json_and_markdown(monkeypatch, capsys) -> None:
         display_server_stats(format="table", output=txt_file)
         assert txt_file.exists()
         assert "Armenia Stats" in txt_file.read_text("utf-8")
+
+
+def test_user_agent_env_override(monkeypatch) -> None:
+    from dartfx.nada.harvester import get_request_headers
+    from dartfx.nada.nada import NadaServer
+
+    # 1. Default User-Agent has Mozilla/5.0 compatible prefix
+    default_headers = get_request_headers()
+    assert "Mozilla/5.0" in default_headers["User-Agent"]
+    assert "dartfx-nada" in default_headers["User-Agent"]
+
+    # 2. Environment override
+    custom = "CustomResearchBot/1.0 (+https://example.org)"
+    monkeypatch.setenv("NADA_USER_AGENT", custom)
+
+    headers = get_request_headers()
+    assert headers["User-Agent"] == custom
+
+    server = NadaServer(server="mock.nada.org", api_key="test-key")
+    assert server.user_agent == custom
+
+
+def test_diagnose_probe_error() -> None:
+    from dartfx.nada.harvester import _diagnose_probe_error
+
+    # 1. Perimeter URL Block
+    r_perimeter = requests.Response()
+    r_perimeter.status_code = 403
+    r_perimeter._content = b"<html><head><title>Perimeter URL Block</title></head><body>IP Blocked</body></html>"
+    assert _diagnose_probe_error([r_perimeter]) == "Perimeter Block (Geo/IP)"
+
+    # 2. Cloudflare Challenge (cf-mitigated or challenges.cloudflare.com)
+    r_cf = requests.Response()
+    r_cf.status_code = 403
+    r_cf.headers["cf-mitigated"] = "challenge"
+    r_cf.headers["Server"] = "cloudflare"
+    r_cf._content = b"<html><head><title>Just a moment...</title></head><body>Turnstile challenge</body></html>"
+    assert _diagnose_probe_error([r_cf]) == "Cloudflare Challenge"
+
+    # 3. Bot Protection (WAF)
+    r_waf = requests.Response()
+    r_waf.status_code = 403
+    r_waf.headers["Server"] = "awselb/2.0"
+    r_waf._content = b"<html><body>AWS WAF Access Denied</body></html>"
+    assert _diagnose_probe_error([r_waf]) == "Bot Protection (WAF)"
+
+    # 4. Auth Required (401)
+    r_auth = requests.Response()
+    r_auth.status_code = 401
+    r_auth._content = b"Unauthorized"
+    assert _diagnose_probe_error([r_auth]) == "Auth Required (401)"
+
+    # 5. Catalog Retired (410)
+    r_retired = requests.Response()
+    r_retired.status_code = 410
+    r_retired._content = b"<html><head><title>410 Gone | ILO Survey Catalog Retired</title></head></html>"
+    assert _diagnose_probe_error([r_retired]) == "Catalog Retired (410)"
+
+    # 6. Server / Gateway Errors (5xx)
+    r_503 = requests.Response()
+    r_503.status_code = 503
+    r_503._content = b"Service Unavailable"
+    assert _diagnose_probe_error([r_503]) == "Service Unavailable (503)"
+
+    r_502 = requests.Response()
+    r_502.status_code = 502
+    r_502._content = b"Bad Gateway"
+    assert _diagnose_probe_error([r_502]) == "Bad Gateway (502)"
+
+    r_500 = requests.Response()
+    r_500.status_code = 500
+    r_500._content = b"Internal Server Error"
+    assert _diagnose_probe_error([r_500]) == "Server Error (500)"
+
+    # 7. PHP Fatal Error on 200
+    r_php = requests.Response()
+    r_php.status_code = 200
+    r_php._content = b"<br /><b>Fatal error</b>: Uncaught Error in /home/nada/index.php"
+    assert _diagnose_probe_error([r_php]) == "PHP Server Error (500)"
+
+    # 8. Endpoint Not Found (404)
+    r_404_a = requests.Response()
+    r_404_a.status_code = 404
+    r_404_b = requests.Response()
+    r_404_b.status_code = 404
+    assert _diagnose_probe_error([r_404_a, r_404_b]) == "Not Found (404)"
+
+    # 9. Fallback / empty
+    assert _diagnose_probe_error([]) == "Not NADA Server"
+
+
+def test_display_server_stats_shows_unresolvable_diagnostics(monkeypatch, capsys) -> None:
+    from dartfx.nada.harvester import display_server_stats
+    from dartfx.nada.nada import ServerInstallation
+
+    mock_insts = [
+        ServerInstallation(name="BPS Indonesia", url="https://microdata.bps.go.id", country_code="ID"),
+        ServerInstallation(name="Pacific Data Hub", url="https://microdata.pacificdata.org", country_code="VU"),
+        ServerInstallation(name="APHRC", url="http://microdataportal.aphrc.org", country_code="KE"),
+        ServerInstallation(name="ILO Retired", url="https://www.ilo.org/surveyLib", country_code="CH"),
+        ServerInstallation(name="Armenia Stats", url="https://microdata.armstat.am", country_code="AM"),
+    ]
+
+    mock_stats = {
+        "https://microdata.bps.go.id": {"is_nada": False, "error": "Perimeter Block (Geo/IP)", "latency_seconds": 1.2},
+        "https://microdata.pacificdata.org": {
+            "is_nada": False,
+            "error": "Cloudflare Challenge",
+            "latency_seconds": 0.4,
+        },
+        "http://microdataportal.aphrc.org": {
+            "is_nada": False,
+            "error": "Service Unavailable (503)",
+            "latency_seconds": 0.8,
+        },
+        "https://www.ilo.org/surveyLib": {"is_nada": False, "error": "Catalog Retired (410)", "latency_seconds": 0.6},
+        "https://microdata.armstat.am": {
+            "is_nada": True,
+            "studies": 42,
+            "error": None,
+            "latency_seconds": 1.5,
+            "version": "5",
+        },
+    }
+
+    monkeypatch.setattr("dartfx.nada.harvester.fetch_nada_installations", lambda **_kwargs: mock_insts)
+    monkeypatch.setattr(
+        "dartfx.nada.harvester.fetch_server_stats",
+        lambda host, **_kwargs: mock_stats.get(host, {"is_nada": False, "error": "Unknown Error"}),
+    )
+
+    # 1. JSON output reports exact statuses and error reasons
+    records = display_server_stats(format="json")
+    status_map = {r["name"]: r["status"] for r in records}
+    assert status_map["BPS Indonesia"] == "Perimeter Block (Geo/IP)"
+    assert status_map["Pacific Data Hub"] == "Cloudflare Challenge"
+    assert status_map["APHRC"] == "Service Unavailable (503)"
+    assert status_map["ILO Retired"] == "Catalog Retired (410)"
+    assert status_map["Armenia Stats"] == "Online"
+
+    # 2. Markdown output includes summary line and clear diagnostic rows
+    capsys.readouterr()
+    display_server_stats(format="markdown")
+    captured_md = capsys.readouterr().out
+    assert "Perimeter Block (Geo/IP)" in captured_md
+    assert "Cloudflare Challenge" in captured_md
+    assert "Service Unavailable (503)" in captured_md
+    assert "Catalog Retired (410)" in captured_md
+    assert "1/5 online (4 restricted/offline)" in captured_md
+    assert "42 total studies indexed" in captured_md

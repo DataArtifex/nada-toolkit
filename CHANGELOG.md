@@ -26,9 +26,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added convenient `--markdown` / `--md` flags to render a clean GitHub-flavored Markdown table with clickable server links and response badges.
   - Added `-o` / `--output` option to write statistics directly to a file instead of console. When invoked as a bare flag (`-o` or `--output`), automatically writes to standard filenames based on the chosen format: `dartfx-nada.stats.txt`, `dartfx-nada.stats.json`, `dartfx-nada.stats.md`, or `dartfx-nada.stats.csv`. Custom file paths (e.g. `-o my_stats.json`) are also supported.
   - Routed progress bars to `stderr` with `transient=True` so stdout redirection (e.g. `dartfx-nada stats --json > stats.json`) outputs 100% clean, parseable data.
+- **Comprehensive Failure Diagnostics & Reporting for Unresolvable/Restricted Servers** (`dartfx-nada stats`, `ServerHarvester`):
+  - Refined probe failure diagnostics in `_diagnose_probe_error()` and `classify_harvest_error()` to pinpoint exact failure modes rather than defaulting to generic `Not a NADA server` or `Forbidden (403)`:
+    - `Perimeter Block (Geo/IP)`: Identifies perimeter firewalls and geo-fencing (e.g., BPS Indonesia's `Perimeter URL Block`).
+    - `Cloudflare Challenge`: Identifies interactive Cloudflare Turnstile / JavaScript bot challenges (e.g., Pacific Data Hub, Sirusa).
+    - `Bot Protection (WAF)`: Identifies AWS WAF, DDoS-Guard, Imperva, and other automated protection layers.
+    - `Auth Required (401)`: Identifies catalogs or search endpoints requiring authentication tokens.
+    - `Catalog Retired (410)`: Identifies decommissioned archives (e.g., ILO Survey Catalog Retired).
+    - `Service Unavailable (503)`, `Bad Gateway (502)`, `Server Error (500)`, and `PHP Server Error`: Detects backend downtime without misclassifying legitimate NADA installations as non-NADA.
+    - `Not Found (404)`: Distinguishes missing endpoints from non-NADA software.
+    - `Not NADA Server`: Reserved strictly for responsive servers running non-NADA platforms.
+  - Semantic color coding in CLI tables: yellow for access restrictions (WAF, Cloudflare Challenge, Perimeter Block, Auth tokens), magenta for retired catalogs and expired domains, dim red for non-NADA/404, and red for server/network/SSL failures.
+  - Added operational summary captions and markdown footers (`Total: X/Y online (Z restricted/offline) • N studies indexed`) to provide an immediate overview in `dartfx-nada stats`.
 
-### Changed
-
+- **Mozilla-Compatible User-Agent Prefix**:
+  - Adopted standard `Mozilla/5.0 (compatible; dartfx-nada/{version}; +https://github.com/DataArtifex/nada-toolkit)` User-Agent string across `NadaServer` and `ServerHarvester`.
+  - Resolves HTTP `403 Forbidden` blocks enforced by AWS WAF (`awselb/2.0`) and Cloudflare bot filters on installations such as the UNHCR Microdata Library (`microdata.unhcr.org`), while maintaining transparent attribution.
 - **Registry Schema Simplification (`data/servers.yaml`)**:
   - Removed redundant `hostname` field from `data/servers.yaml`, treating catalog `url` as the sole source of truth for repository endpoints.
   - Automatically derive server `hostname` and `clean_hostname` in `ServerInstallation` from `url` using standard URL parsing.

@@ -944,7 +944,9 @@ class NadaServer(BaseModel):
     session: requests_cache.CachedSession = Field(
         default_factory=lambda: requests_cache.CachedSession(backend="memory", cache_name="nada")
     )
-    user_agent: str = Field(default=f"dartfx-nada/{__version__}")
+    user_agent: str = Field(
+        default=f"Mozilla/5.0 (compatible; dartfx-nada/{__version__}; +https://github.com/DataArtifex/nada-toolkit)"
+    )
     ssl_verify: bool = True
     version: int | None = None
 
@@ -988,6 +990,11 @@ class NadaServer(BaseModel):
 
         if session is None:
             session = requests_cache.CachedSession(backend="memory", cache_name="nada")
+
+        if "user_agent" not in kwargs:
+            env_ua = os.environ.get("NADA_USER_AGENT") or os.environ.get("DARTFX_NADA_USER_AGENT")
+            if env_ua:
+                kwargs["user_agent"] = env_ua.strip()
 
         super().__init__(
             installation=server_inst,
