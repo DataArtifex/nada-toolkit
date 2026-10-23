@@ -6,10 +6,13 @@ A smart, incremental harvester for NADA DDI CodeBook and survey metadata records
 Uses Typer for CLI interface and Rich for terminal visualizations.
 """
 
+import csv
 import hashlib
+import io
 import json
 import os
 import re
+import sys
 import threading
 import time
 import urllib.parse
@@ -1237,8 +1240,29 @@ def display_server_stats(
     show_env: bool = False,
     sort_by: str = "name",
     descending: bool | None = None,
-) -> None:
+    format: str = "table",
+    output: str | Path | None = None,
+) -> list[dict[str, Any]]:
     """Display live study and collection counts for NADA servers."""
+    clean_fmt = (format or "table").strip().lower()
+
+    out_path: Path | None = None
+    if output:
+        out_str = str(output).strip()
+        if out_str.lower() in ("auto", "__auto__", "-"):
+            ext_map = {
+                "json": "json",
+                "markdown": "md",
+                "md": "md",
+                "csv": "csv",
+                "table": "txt",
+            }
+            ext = ext_map.get(clean_fmt, "txt")
+            out_path = Path(f"dartfx-nada.stats.{ext}")
+        else:
+            out_path = Path(out_str)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+
     installations = fetch_nada_installations(
         target_server=None if server.upper() == "ALL" else server,
         country=country,
@@ -1246,8 +1270,24 @@ def display_server_stats(
     )
 
     if not installations:
-        console.print(f"[bold red]No NADA servers found matching filter '{server}'.[/bold red]")
-        return
+        if out_path:
+            if clean_fmt == "json":
+                out_path.write_text("[]\n", encoding="utf-8")
+            elif clean_fmt in ("markdown", "md"):
+                out_path.write_text("No NADA servers found.\n", encoding="utf-8")
+            elif clean_fmt == "csv":
+                out_path.write_text("", encoding="utf-8")
+            else:
+                out_path.write_text(f"No NADA servers found matching filter '{server}'.\n", encoding="utf-8")
+            console.print(f"[bold green]✓ Statistics saved to:[/] {out_path}")
+        else:
+            if clean_fmt == "json":
+                console.print("[]")
+            elif clean_fmt in ("markdown", "md"):
+                console.print("No NADA servers found.")
+            elif clean_fmt == "table":
+                console.print(f"[bold red]No NADA servers found matching filter '{server}'.[/bold red]")
+        return []
 
     table = Table(
         title=f"NADA Server Statistics ({len(installations)} servers)",
@@ -1279,6 +1319,7 @@ def display_server_stats(
 
     stat_results: list[tuple[ServerInstallation, dict[str, Any]]] = []
 
+    stderr_console = Console(stderr=True)
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -1286,7 +1327,8 @@ def display_server_stats(
         TaskProgressColumn(),
         MofNCompleteColumn(),
         TimeRemainingColumn(),
-        console=console,
+        console=stderr_console,
+        transient=True,
     ) as prog:
         task = prog.add_task("[bold green]Querying NADA servers...", total=len(installations))
         with ThreadPoolExecutor(max_workers=min(12, len(installations))) as executor:
@@ -1345,7 +1387,153 @@ def display_server_stats(
 
     stat_results.sort(key=_sort_key, reverse=reverse_sort)
 
+    records: list[dict[str, Any]] = []
     for inst, stat in stat_results:
+        is_err = bool(stat.get("error"))
+        is_nada = bool(stat.get("is_nada"))
+        req_tok = bool(stat.get("requires_token"))
+        lat = stat.get("latency_seconds")
+
+        if not is_nada:
+            if stat.get("error"):
+                plain_status = abbreviate_error(str(stat["error"]))
+            else:
+                plain_status = "Not NADA Server"
+        elif stat.get("http_fallback"):
+            plain_status = "HTTP (SSL Failed)"
+        elif stat.get("https_upgrade_recommended"):
+            plain_status = "Online (HTTPS Avail)"
+        elif req_tok:
+            plain_status = "Auth Required"
+        elif stat.get("cached"):
+            plain_status = "Cached (24h)"
+        else:
+            plain_status = "Online"
+
+        ver_raw = stat.get("version") or inst.version
+        ver_disp = format_version(ver_raw)
+        php_raw = stat.get("php_version")
+
+        raw_studies = stat.get("studies") if is_nada else None
+        if raw_studies is not None:
+            try:
+                studies_int: int | None = int(str(raw_studies).replace(",", "").strip())
+            except (ValueError, TypeError):
+                studies_int = None
+        else:
+            studies_int = None
+
+        record: dict[str, Any] = {
+            "name": inst.name or inst.clean_hostname,
+            "url": inst.catalog_url or inst.url,
+            "hostname": inst.clean_hostname,
+            "country": inst.country,
+            "country_code": inst.country_code,
+            "version": ver_disp if ver_disp != "-" else None,
+            "php_version": php_raw,
+            "web_server": stat.get("web_server") if is_nada else None,
+            "studies": studies_int,
+            "latency_seconds": lat,
+            "status": plain_status,
+            "is_nada": is_nada,
+            "cached": bool(stat.get("cached")),
+            "error": stat.get("error"),
+        }
+        records.append(record)
+
+    if clean_fmt == "json":
+        if out_path:
+            out_path.write_text(json.dumps(records, indent=2, default=str) + "\n", encoding="utf-8")
+            console.print(f"[bold green]✓ Statistics saved to:[/] {out_path}")
+        else:
+            console.print_json(json.dumps(records, default=str))
+        return records
+
+    if clean_fmt in ("markdown", "md"):
+        md_lines: list[str] = []
+        if show_env:
+            md_lines.append("| Repository / Server | Country | Ver | PHP | Web Server | Studies | Latency | Status |")
+            md_lines.append("|:---|:---:|:---:|:---:|:---|---:|:---:|:---|")
+        else:
+            md_lines.append("| Repository / Server | Country | Ver | PHP | Studies | Latency | Status |")
+            md_lines.append("|:---|:---:|:---:|:---:|---:|:---:|:---|")
+
+        for r, (_inst, stat) in zip(records, stat_results, strict=False):
+            name_disp = (r["name"] or "").replace("|", "\\|")
+            link_url = r["url"]
+            repo_cell = f"[{name_disp}]({link_url})" if link_url else name_disp
+            cc_cell = r["country_code"] or "-"
+            ver_cell = r["version"] or "-"
+
+            php_val = r["php_version"]
+            if not r["is_nada"]:
+                php_cell = "-"
+            elif not php_val:
+                php_cell = "~5.x-7.x" if r["version"] == "v4" else "Hidden"
+            else:
+                php_cell = php_val
+
+            studies_cell = f"{r['studies']:,}" if r["studies"] is not None else "-"
+
+            lat_badge = format_response_latency(
+                r["latency_seconds"],
+                is_online=r["is_nada"],
+                requires_token=bool(stat.get("requires_token")),
+                is_error=bool(stat.get("error")),
+            )
+            lat_cell = Text.from_markup(lat_badge).plain
+            status_cell = r["status"]
+
+            if show_env:
+                web_srv = (r["web_server"] or "-").replace("|", "\\|")
+                md_row = (
+                    f"| {repo_cell} | {cc_cell} | {ver_cell} | {php_cell} "
+                    f"| {web_srv} | {studies_cell} | {lat_cell} | {status_cell} |"
+                )
+            else:
+                md_row = (
+                    f"| {repo_cell} | {cc_cell} | {ver_cell} | {php_cell} "
+                    f"| {studies_cell} | {lat_cell} | {status_cell} |"
+                )
+            md_lines.append(md_row)
+
+        if out_path:
+            out_path.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+            console.print(f"[bold green]✓ Statistics saved to:[/] {out_path}")
+        else:
+            print("\n".join(md_lines))
+        return records
+
+    if clean_fmt == "csv":
+        fieldnames = [
+            "name",
+            "url",
+            "hostname",
+            "country",
+            "country_code",
+            "version",
+            "php_version",
+            "web_server",
+            "studies",
+            "latency_seconds",
+            "status",
+        ]
+        if out_path:
+            with open(out_path, "w", encoding="utf-8", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+                writer.writeheader()
+                for r in records:
+                    writer.writerow(r)
+            console.print(f"[bold green]✓ Statistics saved to:[/] {out_path}")
+        else:
+            writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames, extrasaction="ignore")
+            writer.writeheader()
+            for r in records:
+                writer.writerow(r)
+        return records
+
+    # Default: Rich Table
+    for _r, (inst, stat) in zip(records, stat_results, strict=False):
         name_disp = inst.name or inst.clean_hostname
         link_url = inst.catalog_url or inst.url
         clickable_host = f"[link={link_url}]{name_disp}[/link]" if link_url else name_disp
@@ -1389,7 +1577,14 @@ def display_server_stats(
 
         table.add_row(*row_items)
 
-    console.print(table)
+    if out_path:
+        file_console = Console(file=io.StringIO(), record=True, width=120, force_terminal=False, color_system=None)
+        file_console.print(table)
+        out_path.write_text(file_console.export_text(), encoding="utf-8")
+        console.print(f"[bold green]✓ Statistics saved to:[/] {out_path}")
+    else:
+        console.print(table)
+    return records
 
 
 def fetch_active_studies(

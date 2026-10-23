@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Results in `dartfx-nada stats` are now sorted alphabetically by server/repository name A–Z by default, resolving arbitrary multithreaded completion order.
   - Added `--sort` (`-S`) option to sort by `name` (default), `country`, `studies`, `latency`, `php`, or `status`.
   - Added `--desc` and `--asc` flags to control sort direction, defaulting to descending for study counts and ascending for names/latency.
+- **JSON, Markdown & CSV Output Options & Direct File Export** (`dartfx-nada stats`):
+  - Added `--format` (`-f`) option accepting `table` (default), `json`, `markdown` (or `md`), and `csv`.
+  - Added convenient `--json` flag to print structured machine-readable JSON array of server statistics.
+  - Added convenient `--markdown` / `--md` flags to render a clean GitHub-flavored Markdown table with clickable server links and response badges.
+  - Added `-o` / `--output` option to write statistics directly to a file instead of console. When invoked as a bare flag (`-o` or `--output`), automatically writes to standard filenames based on the chosen format: `dartfx-nada.stats.txt`, `dartfx-nada.stats.json`, `dartfx-nada.stats.md`, or `dartfx-nada.stats.csv`. Custom file paths (e.g. `-o my_stats.json`) are also supported.
+  - Routed progress bars to `stderr` with `transient=True` so stdout redirection (e.g. `dartfx-nada stats --json > stats.json`) outputs 100% clean, parseable data.
 
 ### Changed
 

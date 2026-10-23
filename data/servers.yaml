@@ -485,6 +485,30 @@
     - official-statistics
     - socio-economic
     - census
+- name: Palestine Central Bureau of Statistics (Arabic Language)
+  url: https://microdata.pcbs.gov.ps/PCBS-Metadata-ar-v5.2
+  country_code: PS
+  geocoverage:
+    level: national
+    description: Palestine
+    geonames:
+      - https://www.geonames.org/6254930/
+  domains:
+    - official-statistics
+    - socio-economic
+    - census
+- name: Palestinian Central Bureau of Statistics (English Language)
+  url: https://microdata.pcbs.gov.ps/PCBS-Metadata-en-v5.2
+  country_code: PS
+  geocoverage:
+    level: national
+    description: Palestine
+    geonames:
+      - https://www.geonames.org/6254930/
+  domains:
+    - official-statistics
+    - socio-economic
+    - census
 - name: National Institute of Statistics Rwanda (NISR)
   url: https://microdata.statistics.gov.rw
   country_code: RW
@@ -714,21 +738,6 @@
     description: Mauritius
     geonames:
       - https://www.geonames.org/934292/
-  domains:
-    - official-statistics
-    - socio-economic
-    - census
-- name: Uganda Bureau of Statistics (UBOS)
-  url: https://nada.ubos.org
-  country_code: UG
-  custodian:
-    name: Uganda Bureau of Statistics
-    url: https://www.ubos.org
-  geocoverage:
-    level: national
-    description: Uganda
-    geonames:
-      - https://www.geonames.org/226074/
   domains:
     - official-statistics
     - socio-economic
@@ -991,30 +1000,6 @@
     description: Bhutan
     geonames:
       - https://www.geonames.org/1252634/
-  domains:
-    - official-statistics
-    - socio-economic
-    - census
-- name: Palestine Central Bureau of Statistics (Arabic Language)
-  url: http://www.pcbs.gov.ps/PCBS-Metadata-ar-v4.3
-  country_code: PS
-  geocoverage:
-    level: national
-    description: Palestine
-    geonames:
-      - https://www.geonames.org/6254930/
-  domains:
-    - official-statistics
-    - socio-economic
-    - census
-- name: Palestinian Central Bureau of Statistics (English Language)
-  url: http://www.pcbs.gov.ps/PCBS-Metadata-en-v4.3
-  country_code: PS
-  geocoverage:
-    level: national
-    description: Palestine
-    geonames:
-      - https://www.geonames.org/6254930/
   domains:
     - official-statistics
     - socio-economic

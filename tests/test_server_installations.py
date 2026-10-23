@@ -119,6 +119,77 @@ def test_cli_stats_command_flags() -> None:
     assert "-S" in clean_output
     assert "--desc" in clean_output
     assert "--asc" in clean_output
+    assert "--format" in clean_output
+    assert "-f" in clean_output
+    assert "--json" in clean_output
+    assert "--markdown" in clean_output
+    assert "--md" in clean_output
+    assert "--output" in clean_output
+    assert "-o" in clean_output
+
+
+def test_cli_stats_json_and_markdown(monkeypatch) -> None:
+    from dartfx.nada.nada import ServerInstallation
+
+    mock_insts = [
+        ServerInstallation(
+            name="Armenia Stats",
+            url="https://microdata.armstat.am",
+            country_code="AM",
+        ),
+    ]
+
+    monkeypatch.setattr("dartfx.nada.harvester.fetch_nada_installations", lambda **_kwargs: mock_insts)
+    monkeypatch.setattr(
+        "dartfx.nada.harvester.fetch_server_stats",
+        lambda **_kwargs: {
+            "is_nada": True,
+            "studies": 26,
+            "latency_seconds": 3.6,
+            "version": "5",
+            "php_version": "7.2.19",
+            "web_server": "Apache",
+            "error": None,
+        },
+    )
+
+    runner = CliRunner()
+
+    # Test --json flag
+    res_json = runner.invoke(app, ["stats", "--json", "--country", "AM"])
+    assert res_json.exit_code == 0
+    parsed = json.loads(res_json.stdout)
+    assert len(parsed) == 1
+    assert parsed[0]["name"] == "Armenia Stats"
+    assert parsed[0]["studies"] == 26
+
+    # Test --markdown flag
+    res_md = runner.invoke(app, ["stats", "--markdown", "--country", "AM"])
+    assert res_md.exit_code == 0
+    assert "| Repository / Server | Country | Ver | PHP | Studies | Latency | Status |" in res_md.stdout
+    assert "[Armenia Stats](https://microdata.armstat.am)" in res_md.stdout
+
+    # Test --md alias
+    res_md_alias = runner.invoke(app, ["stats", "--md", "--country", "AM"])
+    assert res_md_alias.exit_code == 0
+    assert "[Armenia Stats](https://microdata.armstat.am)" in res_md_alias.stdout
+
+    # Test --format json
+    res_fmt_json = runner.invoke(app, ["stats", "-f", "json", "--country", "AM"])
+    assert res_fmt_json.exit_code == 0
+    assert json.loads(res_fmt_json.stdout)[0]["studies"] == 26
+
+    # Test -o with specific file
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        out_f = Path(tmp_dir) / "out.json"
+        res_file = runner.invoke(app, ["stats", "--json", "-o", str(out_f), "--country", "AM"])
+        assert res_file.exit_code == 0
+        assert out_f.exists()
+        assert "Statistics saved to" in res_file.stdout
+        loaded = json.loads(out_f.read_text("utf-8"))
+        assert loaded[0]["name"] == "Armenia Stats"
 
 
 def test_cli_version_flag() -> None:

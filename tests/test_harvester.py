@@ -828,3 +828,81 @@ def test_display_server_stats_links_full_url(monkeypatch) -> None:
     assert len(rendered_rows) == 1
     # Ensure the link retains the full catalog path /nada and does not truncate to hostname
     assert "[link=http://160.242.193.218/nada]Togo INSEED[/link]" in rendered_rows[0][0]
+
+
+def test_display_server_stats_json_and_markdown(monkeypatch, capsys) -> None:
+    from dartfx.nada.harvester import display_server_stats
+    from dartfx.nada.nada import ServerInstallation
+
+    mock_insts = [
+        ServerInstallation(
+            name="Armenia Stats",
+            url="https://microdata.armstat.am",
+            country_code="AM",
+        ),
+    ]
+
+    monkeypatch.setattr("dartfx.nada.harvester.fetch_nada_installations", lambda **_kwargs: mock_insts)
+    monkeypatch.setattr(
+        "dartfx.nada.harvester.fetch_server_stats",
+        lambda **_kwargs: {
+            "is_nada": True,
+            "studies": 26,
+            "latency_seconds": 3.6,
+            "version": "5",
+            "php_version": "7.2.19",
+            "web_server": "Apache",
+            "error": None,
+        },
+    )
+
+    # 1. Test JSON output
+    records = display_server_stats(format="json")
+    captured = capsys.readouterr()
+    assert len(records) == 1
+    assert records[0]["name"] == "Armenia Stats"
+    assert records[0]["url"] == "https://microdata.armstat.am"
+    assert records[0]["studies"] == 26
+    assert records[0]["status"] == "Online"
+
+    parsed_json = json.loads(captured.out)
+    assert len(parsed_json) == 1
+    assert parsed_json[0]["country_code"] == "AM"
+    assert parsed_json[0]["php_version"] == "7.2.19"
+
+    # 2. Test Markdown output
+    records_md = display_server_stats(format="markdown")
+    captured_md = capsys.readouterr()
+    assert len(records_md) == 1
+    assert "| Repository / Server | Country | Ver | PHP | Studies | Latency | Status |" in captured_md.out
+    assert "|:---|:---:|:---:|:---:|---:|:---:|:---|" in captured_md.out
+    assert "[Armenia Stats](https://microdata.armstat.am)" in captured_md.out
+    assert "7.2.19" in captured_md.out
+    assert "Online" in captured_md.out
+
+    # 3. Test Markdown output with show_env
+    display_server_stats(format="markdown", show_env=True)
+    captured_md_env = capsys.readouterr()
+    assert "| Web Server |" in captured_md_env.out
+    assert "Apache" in captured_md_env.out
+
+    # 4. Test file output
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        json_file = Path(tmp_dir) / "test_stats.json"
+        display_server_stats(format="json", output=json_file)
+        assert json_file.exists()
+        saved_json = json.loads(json_file.read_text("utf-8"))
+        assert len(saved_json) == 1
+        assert saved_json[0]["name"] == "Armenia Stats"
+
+        md_file = Path(tmp_dir) / "test_stats.md"
+        display_server_stats(format="markdown", output=md_file)
+        assert md_file.exists()
+        assert "| Repository / Server |" in md_file.read_text("utf-8")
+
+        txt_file = Path(tmp_dir) / "test_stats.txt"
+        display_server_stats(format="table", output=txt_file)
+        assert txt_file.exists()
+        assert "Armenia Stats" in txt_file.read_text("utf-8")

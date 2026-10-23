@@ -169,6 +169,18 @@ dartfx-nada stats --country UG --refresh
 
 # Show extended server environment details (including web server banner)
 dartfx-nada stats --show-env
+
+# Export server statistics as machine-readable JSON (stdout or direct file with -o)
+dartfx-nada stats --json > stats.json
+dartfx-nada stats --json -o                # writes to dartfx-nada.stats.json
+dartfx-nada stats --json -o my_stats.json  # writes to custom path
+
+# Render server statistics as a GitHub-flavored Markdown table
+dartfx-nada stats --markdown > stats.md
+dartfx-nada stats --markdown -o            # writes to dartfx-nada.stats.md
+
+# Save terminal table report directly to text file
+dartfx-nada stats -o                       # writes to dartfx-nada.stats.txt
 ```
 
 #### Interpreting Server Environment & Status Columns

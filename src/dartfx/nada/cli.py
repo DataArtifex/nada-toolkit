@@ -23,7 +23,7 @@ load_dotenv(find_dotenv(usecwd=True))
 
 
 def _normalize_smart_dashes() -> None:
-    """Sanitize macOS smart dashes (en-dash, em-dash) in sys.argv to standard hyphens."""
+    """Sanitize macOS smart dashes and bare -o/--output flags in sys.argv."""
     normalized: list[str] = []
     for arg in sys.argv:
         if any(arg.startswith(prefix) for prefix in ("-–", "—", "–", "−")):
@@ -33,7 +33,25 @@ def _normalize_smart_dashes() -> None:
             normalized.append(clean)
         else:
             normalized.append(arg)
-    sys.argv[:] = normalized
+
+    final_args: list[str] = []
+    i = 0
+    while i < len(normalized):
+        arg = normalized[i]
+        if arg in ("-o", "--output"):
+            if i + 1 < len(normalized) and not (normalized[i + 1].startswith("-") and normalized[i + 1] != "-"):
+                final_args.append(arg)
+                final_args.append(normalized[i + 1])
+                i += 2
+                continue
+            else:
+                final_args.append("--output=AUTO")
+                i += 1
+                continue
+        final_args.append(arg)
+        i += 1
+
+    sys.argv[:] = final_args
 
 
 _normalize_smart_dashes()
@@ -72,6 +90,8 @@ class OutputFormat(StrEnum):
     TABLE = "table"
     JSON = "json"
     CSV = "csv"
+    MARKDOWN = "markdown"
+    MD = "md"
 
 
 def get_server(hostname: str | None = None, api_key: str | None = None) -> NadaServer:
@@ -128,6 +148,21 @@ def list_installations(
                     "version": str(inst.version or ""),
                 }
             )
+    if format in (OutputFormat.MARKDOWN, OutputFormat.MD):
+        md_lines = [
+            "| Repository / Organization | Hostname | Country | Code | Ver |",
+            "|:---|:---|:---|:---:|:---:|",
+        ]
+        for inst in all_installations:
+            name_val = (inst.name or "").replace("|", "\\|")
+            host_val = inst.clean_hostname or ""
+            url_val = inst.catalog_url or inst.url
+            host_link = f"[{host_val}]({url_val})" if url_val else host_val
+            c_name = inst.country or "-"
+            c_code = inst.country_code or "-"
+            ver_str = inst.version or "-"
+            md_lines.append(f"| {name_val} | {host_link} | {c_name} | {c_code} | {ver_str} |")
+        print("\n".join(md_lines))
         return
 
     table = Table(title=f"Worldwide NADA Installations ({len(all_installations)} found)")
@@ -630,6 +665,37 @@ def stats(
             help="Force ascending sort order.",
         ),
     ] = False,
+    format: Annotated[
+        OutputFormat,
+        typer.Option(
+            "--format",
+            "-f",
+            help="Output format: table (default), json, markdown, or csv.",
+        ),
+    ] = OutputFormat.TABLE,
+    json_output: Annotated[
+        bool,
+        typer.Option(
+            "--json",
+            help="Output results as JSON (shorthand for --format json).",
+        ),
+    ] = False,
+    markdown_output: Annotated[
+        bool,
+        typer.Option(
+            "--markdown",
+            "--md",
+            help="Output results as Markdown table (shorthand for --format markdown).",
+        ),
+    ] = False,
+    output: Annotated[
+        str | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Write output to a file instead of console (default: dartfx-nada.stats.txt|json|md|csv).",
+        ),
+    ] = None,
 ) -> None:
     """Display live study count, latency, and status for NADA servers."""
     from dartfx.nada.harvester import display_server_stats
@@ -639,6 +705,13 @@ def stats(
         descending = False
     elif desc:
         descending = True
+
+    if json_output:
+        effective_format = OutputFormat.JSON
+    elif markdown_output:
+        effective_format = OutputFormat.MARKDOWN
+    else:
+        effective_format = format
 
     display_server_stats(
         server=server,
@@ -651,6 +724,8 @@ def stats(
         show_env=show_env,
         sort_by=sort,
         descending=descending,
+        format=effective_format.value,
+        output=output,
     )
 
 
