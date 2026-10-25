@@ -248,6 +248,41 @@ def test_fetch_server_stats_caching(tmp_path: Path) -> None:
     assert res.get("version") == "5"
 
 
+def test_fetch_server_stats_env_var_repo(tmp_path: Path, monkeypatch) -> None:
+    server = "env-cached.nada.org"
+    server_dir = tmp_path / server
+    server_dir.mkdir(parents=True)
+    cache_file = server_dir / ".stats_cache.json"
+
+    with open(cache_file, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "server": server,
+                "cached_at": datetime.now(UTC).isoformat(),
+                "studies": 123,
+                "collections": 5,
+                "is_nada": True,
+                "version": "5",
+                "error": None,
+            },
+            f,
+        )
+
+    # 1. Test DARTFX_NADA_REPOSITORY
+    monkeypatch.setenv("DARTFX_NADA_REPOSITORY", str(tmp_path))
+    monkeypatch.delenv("DARTFX_NADA_REPOSITORY_ROOT", raising=False)
+    res = fetch_server_stats(server, cache_ttl_hours=100.0)
+    assert res.get("cached") is True
+    assert res.get("studies") == 123
+
+    # 2. Test DARTFX_NADA_REPOSITORY_ROOT fallback
+    monkeypatch.delenv("DARTFX_NADA_REPOSITORY", raising=False)
+    monkeypatch.setenv("DARTFX_NADA_REPOSITORY_ROOT", str(tmp_path))
+    res2 = fetch_server_stats(server, cache_ttl_hours=100.0)
+    assert res2.get("cached") is True
+    assert res2.get("studies") == 123
+
+
 def test_analyze_harvest_errors(tmp_path: Path) -> None:
     # 1. Empty dir
     empty_analysis = analyze_harvest_errors(tmp_path)
@@ -652,6 +687,23 @@ def test_server_dir_name_excludes_port(tmp_path: Path) -> None:
     assert harvester.server_dir == tmp_path / "microdata.ubos.org"
     assert ":" not in harvester.server_dir.name
     assert ":" not in harvester.dir_name
+
+
+def test_server_harvester_resolves_subpath(tmp_path: Path) -> None:
+    from dartfx.nada.harvester import parse_server_url
+
+    # DataFirst is registered with catalog URL https://www.datafirst.uct.ac.za/dataportal
+    base_url, clean_host, scheme, subpath = parse_server_url("www.datafirst.uct.ac.za")
+    assert clean_host == "www.datafirst.uct.ac.za"
+    assert subpath == "/dataportal"
+    assert base_url == "https://www.datafirst.uct.ac.za/dataportal"
+
+    # ServerHarvester should keep clean directory name on disk while maintaining full catalog url
+    harvester = ServerHarvester("www.datafirst.uct.ac.za", tmp_path)
+    assert harvester.host == "www.datafirst.uct.ac.za"
+    assert harvester.url == "https://www.datafirst.uct.ac.za/dataportal"
+    assert harvester.dir_name == "www.datafirst.uct.ac.za"
+    assert harvester.server_dir == tmp_path / "www.datafirst.uct.ac.za"
 
 
 def test_extract_server_environment() -> None:

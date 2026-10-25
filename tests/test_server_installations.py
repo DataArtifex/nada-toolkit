@@ -191,6 +191,14 @@ def test_cli_stats_json_and_markdown(monkeypatch) -> None:
         loaded = json.loads(out_f.read_text("utf-8"))
         assert loaded[0]["name"] == "Armenia Stats"
 
+        # Test --repo-dir option
+        res_repo = runner.invoke(app, ["stats", "--repo-dir", tmp_dir, "--country", "AM"])
+        assert res_repo.exit_code == 0
+
+        # Test -R shorthand option
+        res_repo_short = runner.invoke(app, ["stats", "-R", tmp_dir, "--country", "AM"])
+        assert res_repo_short.exit_code == 0
+
 
 def test_cli_version_flag() -> None:
     runner = CliRunner()

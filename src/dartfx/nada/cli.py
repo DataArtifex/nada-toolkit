@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from enum import StrEnum
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import typer
@@ -636,6 +637,15 @@ def stats(
             help="Statistics cache expiration in hours (default: 24).",
         ),
     ] = 24,
+    repo_dir: Annotated[
+        str | None,
+        typer.Option(
+            "--repo-dir",
+            "-R",
+            envvar=["DARTFX_NADA_REPOSITORY", "DARTFX_NADA_REPOSITORY_ROOT"],
+            help="Local repository directory for caching statistics (defaults to DARTFX_NADA_REPOSITORY or .cache).",
+        ),
+    ] = None,
     timeout: Annotated[
         int,
         typer.Option(
@@ -730,6 +740,7 @@ def stats(
         refresh_cache=refresh,
         cache_ttl_hours=float(cache_ttl),
         timeout=timeout,
+        repo_root=Path(repo_dir) if repo_dir else None,
         show_env=show_env,
         sort_by=sort,
         descending=descending,
@@ -751,7 +762,7 @@ def errors(
         typer.Option(
             "--repo-dir",
             "-r",
-            envvar="DARTFX_NADA_REPOSITORY",
+            envvar=["DARTFX_NADA_REPOSITORY", "DARTFX_NADA_REPOSITORY_ROOT"],
             help="Path to repository storage root directory.",
         ),
     ] = None,

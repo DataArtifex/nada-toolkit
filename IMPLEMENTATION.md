@@ -38,7 +38,7 @@ The toolkit is designed to be a high-level, type-safe wrapper around the IHSN NA
     - **Parked & Non-NADA Server Filtering**: Distinguishes valid NADA installations from domain registrars, domain-for-sale parking pages, and unrelated web portals returning HTTP 200 HTML.
     - **PHP Runtime & Server Environment Detection** (`extract_server_environment`, `format_php_version`): Passively captures PHP runtime versions from `X-Powered-By`, `Server`, and `X-PHP-Version` headers, highlighting supported vs. end-of-life runtimes for vulnerability risk assessment, with extended server banner support via `--show-env` / `-e`.
     - **Deterministic Output Ordering & Flexible Sorting**: Sorts results alphabetically by server/repository name A–Z by default, resolving thread completion randomness. Supports custom sorting via `--sort` / `-S` (by `name`, `country`, `studies`, `latency`, `php`, `status`) with intuitive direction handling (`--desc` / `--asc`).
-    - **24-Hour Persistence & Auto-Invalidation**: Stores metrics in `.stats_cache.json` under the server directory (or `.cache/`) for sub-second CLI re-rendering. Automatically invalidates and re-queries suspicious zero-study cache records.
+    - **24-Hour Persistence & Auto-Invalidation**: Stores metrics in `.stats_cache.json` under the server directory in the repository root (configured via `--repo-dir`, `DARTFX_NADA_REPOSITORY`, or `DARTFX_NADA_REPOSITORY_ROOT`, defaulting to `.cache/`) for sub-second CLI re-rendering. Automatically invalidates and re-queries suspicious zero-study cache records.
 
 ### Server Status & Health Diagnostics Taxonomy
 

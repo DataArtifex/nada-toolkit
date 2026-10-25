@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-10-25
+
+### Added
+
+- **Repository Root Caching & Environment Variable Support** (`dartfx-nada stats`):
+  - Added `--repo-dir` / `-R` option to `dartfx-nada stats` CLI command to store statistics cache (`.stats_cache.json`) in the designated repository directory instead of defaulting to `./.cache`.
+  - Added support for both `DARTFX_NADA_REPOSITORY` and `DARTFX_NADA_REPOSITORY_ROOT` environment variables across `stats`, `harvest`, `errors`, and token resolution subsystems.
+  - Updated `fetch_server_stats` and `display_server_stats` to automatically inspect `DARTFX_NADA_REPOSITORY` / `DARTFX_NADA_REPOSITORY_ROOT` when `repo_root` is not explicitly provided.
+
+### Fixed
+
+- **Subpath URL Resolution in Harvester** (`dartfx-nada harvest`):
+  - Fixed an issue where servers hosted under custom URL subpaths (e.g. DataFirst at `https://www.datafirst.uct.ac.za/dataportal`) reported 0 active studies during `dartfx-nada harvest` because `ServerHarvester` stripped subpaths and probed the root domain.
+  - Enhanced `parse_server_url` to automatically resolve registered catalog URLs from the installations registry when given a bare hostname.
+  - Maintained clean server directory naming on disk (e.g. `www.datafirst.uct.ac.za`) while preserving the full endpoint path (`https://www.datafirst.uct.ac.za/dataportal`) for API calls.
+
 ## [0.4.1] - 2026-10-22
 
 ### Added

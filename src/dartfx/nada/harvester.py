@@ -177,6 +177,22 @@ def parse_server_url(host: str) -> tuple[str, str, str, str]:
         subpath = ""
 
     scheme = "http" if is_explicit_http else (parsed.scheme or "https")
+
+    # If no explicit subpath was provided in raw host, resolve from known installations registry
+    if not subpath and clean_host:
+        try:
+            for inst in fetch_nada_installations(target_server=clean_host, fallback_unlisted=False):
+                if inst.clean_hostname.lower() == clean_host.lower() and inst.url:
+                    parsed_inst = urllib.parse.urlparse(inst.url)
+                    inst_subpath = parsed_inst.path.rstrip("/")
+                    if inst_subpath and inst_subpath != "/":
+                        subpath = inst_subpath
+                    if not is_explicit_http and not is_explicit_https:
+                        scheme = parsed_inst.scheme or scheme
+                    break
+        except Exception:
+            pass
+
     base_url = f"{scheme}://{clean_host}{port_suffix}{subpath}"
     return base_url, clean_host, scheme, subpath
 
@@ -279,7 +295,7 @@ def resolve_server_token(
     search_dirs = []
     if repo_root:
         search_dirs.append(repo_root)
-    env_repo = os.environ.get("DARTFX_NADA_REPOSITORY")
+    env_repo = os.environ.get("DARTFX_NADA_REPOSITORY") or os.environ.get("DARTFX_NADA_REPOSITORY_ROOT")
     if env_repo:
         search_dirs.append(Path(env_repo))
     search_dirs.append(Path.cwd())
@@ -694,7 +710,7 @@ def analyze_harvest_errors(
 ) -> dict[str, Any]:
     """Scan repository storage directories for .manifest.json files and aggregate error statistics."""
     if repo_dir is None:
-        env_dir = os.environ.get("DARTFX_NADA_REPOSITORY")
+        env_dir = os.environ.get("DARTFX_NADA_REPOSITORY") or os.environ.get("DARTFX_NADA_REPOSITORY_ROOT")
         base_path = Path(env_dir).resolve() if env_dir else Path.cwd()
     else:
         base_path = Path(repo_dir).resolve()
@@ -1500,7 +1516,7 @@ def fetch_server_stats(
     query: str | None = None,
     api_token: str | None = None,
     timeout: int = 10,
-    repo_root: Path | None = None,
+    repo_root: Path | str | None = None,
     refresh_cache: bool = False,
     cache_ttl_hours: float = 24.0,
 ) -> dict[str, Any]:
@@ -1509,9 +1525,13 @@ def fetch_server_stats(
     parsed = urllib.parse.urlparse(base_url)
     port_suffix = f":{parsed.port}" if parsed.port else ""
 
-    headers = get_request_headers(host=clean_host, api_token=api_token, repo_root=repo_root)
+    if repo_root is None:
+        env_repo = os.environ.get("DARTFX_NADA_REPOSITORY") or os.environ.get("DARTFX_NADA_REPOSITORY_ROOT")
+        target_repo = Path(env_repo) if env_repo else Path.cwd() / ".cache"
+    else:
+        target_repo = Path(repo_root)
 
-    target_repo = repo_root or Path.cwd() / ".cache"
+    headers = get_request_headers(host=clean_host, api_token=api_token, repo_root=target_repo)
     cache_file = target_repo / get_server_dir_name(clean_host) / ".stats_cache.json"
 
     if cache_file.exists() and not refresh_cache:
@@ -1634,7 +1654,7 @@ def display_server_stats(
     refresh_cache: bool = False,
     cache_ttl_hours: float = 24.0,
     timeout: int = 10,
-    repo_root: Path | None = None,
+    repo_root: Path | str | None = None,
     show_env: bool = False,
     sort_by: str = "name",
     descending: bool | None = None,
@@ -1702,6 +1722,12 @@ def display_server_stats(
     table.add_column("Latency", justify="center")
     table.add_column("Status", justify="left")
 
+    if repo_root is None:
+        env_repo = os.environ.get("DARTFX_NADA_REPOSITORY") or os.environ.get("DARTFX_NADA_REPOSITORY_ROOT")
+        effective_repo_root = Path(env_repo) if env_repo else None
+    else:
+        effective_repo_root = Path(repo_root)
+
     def _query_stat(inst: ServerInstallation) -> tuple[ServerInstallation, dict[str, Any]]:
         host_to_query = inst.url or inst.clean_hostname
         s = fetch_server_stats(
@@ -1709,7 +1735,7 @@ def display_server_stats(
             query=query,
             api_token=api_token,
             timeout=timeout,
-            repo_root=repo_root,
+            repo_root=effective_repo_root,
             refresh_cache=refresh_cache,
             cache_ttl_hours=cache_ttl_hours,
         )
@@ -2394,9 +2420,11 @@ class ServerHarvester:
     """Manages harvesting, diff detection, and file persistence for a single NADA server."""
 
     def __init__(self, host: str, repo_root: Path):
-        self.host = host.replace("https://", "").replace("http://", "").strip("/")
-        if "/" in self.host:
-            self.host = self.host.split("/", 1)[0]
+        base_url, clean_host, scheme, subpath = parse_server_url(host)
+        parsed = urllib.parse.urlparse(base_url)
+        port_suffix = f":{parsed.port}" if parsed.port else ""
+        self.host = f"{clean_host}{port_suffix}"
+        self.url = base_url
         self.dir_name = get_server_dir_name(self.host)
         # Migrate existing directory with raw colon port name if present
         if ":" in self.host:
@@ -2470,7 +2498,7 @@ class ServerHarvester:
             console.print(f"[bold cyan]── Syncing Server: {self.host} ──[/bold cyan]")
 
         active_studies = fetch_active_studies(
-            self.host,
+            self.url,
             query=query,
             since_date=since_date,
             limit=effective_limit,
@@ -2584,7 +2612,7 @@ class ServerHarvester:
 
             # Fetch record (unlocked network I/O)
             content_bytes, _, err_msg = fetch_study_record(
-                self.host,
+                self.url,
                 idno,
                 metadata_format=fmt,
                 verbose=verbose,
@@ -2715,7 +2743,7 @@ def harvest(
         typer.Option(
             "--repo-dir",
             "-r",
-            envvar="DARTFX_NADA_REPOSITORY",
+            envvar=["DARTFX_NADA_REPOSITORY", "DARTFX_NADA_REPOSITORY_ROOT"],
             help="Local repository directory for harvested files.",
         ),
     ] = None,
@@ -2800,7 +2828,7 @@ def harvest(
 
     total_harvest_errors = 0
     for inst in installations:
-        host = inst.clean_hostname
+        host = inst.url or inst.clean_hostname
         harvester = ServerHarvester(host, base_repo)
 
         with Progress(
@@ -2814,9 +2842,9 @@ def harvest(
             console=console,
         ) as prog:
             task = prog.add_task(
-                f"Syncing {host}...",
+                f"Syncing {inst.clean_hostname}...",
                 total=None,
-                server=host,
+                server=inst.clean_hostname,
                 filename="Fetching catalog...",
             )
 
@@ -2875,7 +2903,7 @@ def harvest(
         err_count = len(results.get("errors", []))
         total_harvest_errors += err_count
         summary_table.add_row(
-            host,
+            inst.clean_hostname,
             str(len(results.get("datasets", []))),
             str(len(results.get("added", []))),
             str(len(results.get("updated", []))),
