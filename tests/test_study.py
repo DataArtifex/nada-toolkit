@@ -147,3 +147,58 @@ def test_cli_info_command(monkeypatch) -> None:
     assert "13,085" in res_info.stdout
     assert "Croissant" in res_info.stdout
     assert "Schema.org" in res_info.stdout
+
+
+def test_cli_info_command_with_resource_types_breakdown(monkeypatch) -> None:
+    from dartfx.nada.nada import ServerInstallation
+
+    class MockServerWithTypes:
+        installation = ServerInstallation(
+            name="Nigerian National Bureau of Statistics",
+            clean_hostname="microdata.nigerianstat.gov.ng",
+            country="Nigeria",
+            country_code="NG",
+            url="https://microdata.nigerianstat.gov.ng",
+        )
+        url = "https://microdata.nigerianstat.gov.ng"
+
+        def detect_server_version(self):
+            return 5
+
+        def get_collections(self):
+            return [{"id": 1, "title": "National"}]
+
+        def search(self, _params):
+            return {
+                "result": {
+                    "total": 107,
+                    "search_counts_by_type": {
+                        "survey": 79,
+                        "document": 28,
+                    },
+                }
+            }
+
+    monkeypatch.setattr("dartfx.nada.cli.get_server", lambda *_args, **_kwargs: MockServerWithTypes())
+    monkeypatch.setattr(
+        "dartfx.nada.harvester.fetch_server_stats",
+        lambda *_args, **_kwargs: {
+            "is_nada": True,
+            "studies": 79,
+            "total_resources": 107,
+            "types": {"survey": 79, "document": 28},
+            "collections": 1,
+            "version": "5",
+        },
+    )
+
+    runner = CliRunner()
+    res_info = runner.invoke(app, ["info", "microdata.nigerianstat.gov.ng"])
+    assert res_info.exit_code == 0
+    assert "Microdata Studies" in res_info.stdout
+    assert "79" in res_info.stdout
+    assert "Total Catalog Resources" in res_info.stdout
+    assert "107" in res_info.stdout
+    assert "Catalog Resource Types Breakdown" in res_info.stdout
+    assert "Microdata (Surveys & Censuses)" in res_info.stdout
+    assert "Documents & Publications" in res_info.stdout

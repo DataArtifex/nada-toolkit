@@ -1217,3 +1217,79 @@ def test_display_server_stats_shows_aia_fixed(monkeypatch) -> None:
     assert len(records) == 1
     assert records[0]["status"] == "Online (AIA Fixed)"
     assert records[0]["aia_repaired"] is True
+
+
+def test_fetch_server_stats_resource_types(monkeypatch) -> None:
+    def mock_get(url, **_kwargs):
+        resp = MagicMock()
+        if "api/catalog/search" in url:
+            resp.status_code = 200
+            resp.json = MagicMock(
+                return_value={
+                    "result": {
+                        "total": 107,
+                        "search_counts_by_type": {
+                            "survey": 79,
+                            "document": 28,
+                        },
+                        "rows": [],
+                    }
+                }
+            )
+        elif "api/catalog/collections" in url:
+            resp.status_code = 200
+            resp.json = MagicMock(return_value={"result": [{"id": 1}]})
+        return resp
+
+    monkeypatch.setattr("requests.get", mock_get)
+
+    # Default: resource_type="survey" -> reports microdata count
+    stats_default = fetch_server_stats("mock.server.org", refresh_cache=True)
+    assert stats_default["is_nada"] is True
+    assert stats_default["studies"] == 79
+    assert stats_default["total_resources"] == 107
+    assert stats_default["types"] == {"survey": 79, "document": 28}
+
+    # Filter by specific type: document
+    stats_doc = fetch_server_stats("mock.server.org", refresh_cache=True, resource_type="document")
+    assert stats_doc["studies"] == 28
+
+    # All resources: "all"
+    stats_all = fetch_server_stats("mock.server.org", refresh_cache=True, resource_type="all")
+    assert stats_all["studies"] == 107
+
+
+def test_fetch_active_studies_resource_type_filter(monkeypatch) -> None:
+    captured_urls = []
+
+    def mock_get(url, **_kwargs):
+        captured_urls.append(url)
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json = MagicMock(
+            return_value={
+                "result": {
+                    "total": 2,
+                    "rows": [
+                        {"idno": "SURV-1", "title": "Microdata 1", "type": "survey"},
+                        {"idno": "DOC-1", "title": "Document 1", "type": "document"},
+                    ],
+                }
+            }
+        )
+        return resp
+
+    monkeypatch.setattr("requests.get", mock_get)
+
+    # Default: resource_type="survey"
+    studies = fetch_active_studies("mock.server.org", refresh_catalog=True)
+    assert "SURV-1" in studies
+    assert "DOC-1" not in studies
+    assert any("&type=survey" in u for u in captured_urls)
+
+    # All: resource_type="all"
+    captured_urls.clear()
+    studies_all = fetch_active_studies("mock.server.org", refresh_catalog=True, resource_type="all")
+    assert "SURV-1" in studies_all
+    assert "DOC-1" in studies_all
+    assert not any("&type=all" in u for u in captured_urls)

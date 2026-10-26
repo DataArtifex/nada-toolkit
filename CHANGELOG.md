@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `--repo-dir` / `-R` option to `dartfx-nada stats` CLI command to store statistics cache (`.stats_cache.json`) in the designated repository directory instead of defaulting to `./.cache`.
   - Added support for both `DARTFX_NADA_REPOSITORY` and `DARTFX_NADA_REPOSITORY_ROOT` environment variables across `stats`, `harvest`, `errors`, and token resolution subsystems.
   - Updated `fetch_server_stats` and `display_server_stats` to automatically inspect `DARTFX_NADA_REPOSITORY` / `DARTFX_NADA_REPOSITORY_ROOT` when `repo_root` is not explicitly provided.
+- **Default Focus on Microdata Studies & Catalog Resource Types Breakdown** (`dartfx-nada info`, `dartfx-nada stats`, `dartfx-nada harvest`):
+  - Shifted default study count reporting across `stats`, `harvest`, and `info` to focus exclusively on microdata (`survey` resource type), preventing document, table, image, video, and script entries from artificially inflating study counts or triggering invalid DDI downloads.
+  - Enriched `dartfx-nada info` to display primary "Microdata Studies" as well as "Total Catalog Resources" when multiple resource types exist.
+  - Added a dedicated "Catalog Resource Types Breakdown" table to `dartfx-nada info` categorizing all catalog entries (Microdata, Time Series Indicators, Geospatial Data, Documents & Publications, Tables, Visualizations & Images, Scripts & Algorithms, Videos & Multimedia) with exact counts.
+  - Added `--type` / `-T` option to `dartfx-nada stats` (defaulting to `survey`, with support for `'all'` or specific resource types) and `--type` / `-t` option to `dartfx-nada harvest`.
+  - Added `type` and `tab_type` parameter fields to `SearchParameters` Pydantic model in `dartfx.nada.nada`.
 
 ### Fixed
 

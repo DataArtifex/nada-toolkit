@@ -1328,6 +1328,7 @@ def _probe_nada_url(
     timeout: int,
     query: str | None = None,
     verify: str | bool | None = None,
+    resource_type: str | None = "survey",
 ) -> dict[str, Any]:
     """Probe a single base URL (http or https) for NADA API / catalog endpoints."""
     res: dict[str, Any] = {
@@ -1414,11 +1415,34 @@ def _probe_nada_url(
                         res_dict = s_data.get("result", {})
                         if isinstance(res_dict, dict):
                             try:
-                                res["studies"] = int(res_dict.get("total", len(res_dict.get("rows", []))))
+                                total_all = int(res_dict.get("total", len(res_dict.get("rows", []))))
                             except (ValueError, TypeError):
-                                res["studies"] = len(res_dict.get("rows", []))
+                                total_all = len(res_dict.get("rows", []))
+                            res["total_resources"] = total_all
+
+                            types_counts: dict[str, int] = {}
+                            raw_types = res_dict.get("search_counts_by_type")
+                            if isinstance(raw_types, dict):
+                                for k_type, v_type in raw_types.items():
+                                    if k_type:
+                                        try:
+                                            types_counts[str(k_type).lower()] = int(v_type)
+                                        except (ValueError, TypeError):
+                                            pass
+                            if types_counts:
+                                res["types"] = types_counts
+                                clean_rt = (resource_type or "survey").strip().lower()
+                                if clean_rt != "all" and clean_rt in types_counts:
+                                    res["studies"] = types_counts[clean_rt]
+                                elif clean_rt == "survey" and "survey" in types_counts:
+                                    res["studies"] = types_counts["survey"]
+                                else:
+                                    res["studies"] = total_all
+                            else:
+                                res["studies"] = total_all
                         elif isinstance(res_dict, list):
                             res["studies"] = len(res_dict)
+                            res["total_resources"] = len(res_dict)
                 except Exception:
                     pass
             elif r_search.status_code == 401:
@@ -1519,6 +1543,7 @@ def fetch_server_stats(
     repo_root: Path | str | None = None,
     refresh_cache: bool = False,
     cache_ttl_hours: float = 24.0,
+    resource_type: str | None = "survey",
 ) -> dict[str, Any]:
     """Retrieve counts of studies, collections, version and latency for a NADA server."""
     base_url, clean_host, primary_scheme, subpath = parse_server_url(host)
@@ -1548,6 +1573,12 @@ def fetch_server_stats(
                             pass  # Re-verify live using strict payload validation
                         else:
                             cdata["cached"] = True
+                            if cdata.get("types"):
+                                clean_rt = (resource_type or "survey").strip().lower()
+                                if clean_rt != "all" and clean_rt in cdata["types"]:
+                                    cdata["studies"] = cdata["types"][clean_rt]
+                                elif clean_rt == "all":
+                                    cdata["studies"] = cdata.get("total_resources", cdata.get("studies"))
                             return cdata
         except Exception:
             pass
@@ -1555,7 +1586,9 @@ def fetch_server_stats(
     primary_url = base_url
 
     cached_bundle = get_ca_bundle_for_host(clean_host) if primary_scheme == "https" else None
-    stats = _probe_nada_url(primary_url, clean_host, headers, timeout, query=query, verify=cached_bundle)
+    stats = _probe_nada_url(
+        primary_url, clean_host, headers, timeout, query=query, verify=cached_bundle, resource_type=resource_type
+    )
     stats["server"] = clean_host
     stats["scheme"] = primary_scheme
     if cached_bundle and stats.get("is_nada"):
@@ -1566,7 +1599,9 @@ def fetch_server_stats(
     if primary_scheme == "http" and stats.get("is_nada"):
         try:
             https_url = f"https://{clean_host}{port_suffix}{subpath}"
-            https_stats = _probe_nada_url(https_url, clean_host, headers, timeout=min(5, timeout), query=query)
+            https_stats = _probe_nada_url(
+                https_url, clean_host, headers, timeout=min(5, timeout), query=query, resource_type=resource_type
+            )
             if https_stats.get("is_nada") and not https_stats.get("is_ssl_error") and not https_stats.get("error"):
                 stats["https_available"] = True
                 stats["https_upgrade_recommended"] = True
@@ -1591,6 +1626,7 @@ def fetch_server_stats(
                         timeout=timeout,
                         query=query,
                         verify=str(aia_bundle),
+                        resource_type=resource_type,
                     )
                     if aia_stats.get("is_nada"):
                         stats["is_nada"] = True
@@ -1660,6 +1696,7 @@ def display_server_stats(
     descending: bool | None = None,
     format: str = "table",
     output: str | Path | None = None,
+    resource_type: str | None = "survey",
 ) -> list[dict[str, Any]]:
     """Display live study and collection counts for NADA servers."""
     clean_fmt = (format or "table").strip().lower()
@@ -1738,6 +1775,7 @@ def display_server_stats(
             repo_root=effective_repo_root,
             refresh_cache=refresh_cache,
             cache_ttl_hours=cache_ttl_hours,
+            resource_type=resource_type,
         )
         return inst, s
 
@@ -1866,6 +1904,8 @@ def display_server_stats(
             "php_version": php_raw,
             "web_server": stat.get("web_server") if is_nada else None,
             "studies": studies_int,
+            "total_resources": stat.get("total_resources"),
+            "types": stat.get("types"),
             "latency_seconds": lat,
             "status": plain_status,
             "availability": availability,
@@ -1986,12 +2026,13 @@ def display_server_stats(
         restricted_count = sum(1 for r in records if r.get("availability") == "restricted")
         offline_count = sum(1 for r in records if r.get("availability") == "offline")
         total_studies = sum(int(r.get("studies") or 0) for r in records if r.get("is_nada"))
+        type_desc = "microdata studies" if (resource_type or "survey").lower() == "survey" else "resources"
         table.caption = (
             f"[bold]Total:[/] [green]{accessible_count}[/green] accessible"
             f" • [yellow]{restricted_count}[/yellow] restricted"
             f" • [red]{offline_count}[/red] offline/inactive"
             f" ({len(records)} servers)"
-            f" • [cyan]{total_studies:,}[/cyan] studies indexed"
+            f" • [cyan]{total_studies:,}[/cyan] {type_desc} indexed"
         )
 
     for _r, (inst, stat) in zip(records, stat_results, strict=False):
@@ -2071,6 +2112,7 @@ def fetch_active_studies(
     verbose: bool = False,
     api_token: str | None = None,
     catalog_progress_callback=None,
+    resource_type: str | None = "survey",
 ) -> dict[str, dict[str, Any]]:
     """Retrieve catalog studies for a NADA server with 24h caching."""
     base_url, clean_host, _scheme, _subpath = parse_server_url(host)
@@ -2088,7 +2130,11 @@ def fetch_active_studies(
                     dt = datetime.fromisoformat(cached_at_str)
                     age_hours = (datetime.now(UTC) - dt).total_seconds() / 3600.0
                     if age_hours < cache_ttl_hours:
-                        if cdata.get("query") == query and cdata.get("since_date") == since_date:
+                        if (
+                            cdata.get("query") == query
+                            and cdata.get("since_date") == since_date
+                            and cdata.get("resource_type") == resource_type
+                        ):
                             cached_studies = cdata.get("studies", {})
                             cached_count = len(cached_studies)
                             is_complete = cdata.get("is_complete", False)
@@ -2149,6 +2195,8 @@ def fetch_active_studies(
             url += f"&sk={urllib.parse.quote(query)}"
         if since_date:
             url += f"&created={urllib.parse.quote(since_date)}"
+        if resource_type and resource_type.strip().lower() != "all":
+            url += f"&type={urllib.parse.quote(resource_type.strip().lower())}"
 
         if verbose:
             console.print(f"[dim]  [API] GET {url}[/dim]")
@@ -2175,9 +2223,14 @@ def fetch_active_studies(
                 idno = str(row.get("idno") or row.get("id", "")).strip()
                 if not idno:
                     continue
+                row_type = str(row.get("type") or "survey").lower()
+                if resource_type and resource_type.strip().lower() != "all":
+                    if row_type != resource_type.strip().lower():
+                        continue
                 active_studies[idno] = {
                     "idno": idno,
                     "id": str(row.get("id", "")),
+                    "type": row_type,
                     "title": row.get("title", idno),
                     "nation": row.get("nation", ""),
                     "created": row.get("created"),
@@ -2267,6 +2320,7 @@ def fetch_active_studies(
                 "cached_at": datetime.now(UTC).isoformat(),
                 "query": query,
                 "since_date": since_date,
+                "resource_type": resource_type,
                 "count": len(merged_studies),
                 "total": server_total,
                 "is_complete": is_complete,
@@ -2481,6 +2535,7 @@ class ServerHarvester:
         progress_callback=None,
         catalog_progress_callback=None,
         workers: int = 4,
+        resource_type: str | None = "survey",
     ) -> dict[str, list[Any]]:
         """Perform intelligent incremental sync (Additions, Updates, Deletions)."""
         effective_limit = None if limit == 0 else limit
@@ -2509,6 +2564,7 @@ class ServerHarvester:
             verbose=verbose,
             api_token=api_token,
             catalog_progress_callback=catalog_progress_callback,
+            resource_type=resource_type,
         )
         stats["datasets"] = list(active_studies.keys())
 
@@ -2730,6 +2786,14 @@ def harvest(
             help="Metadata formats to harvest (comma-separated: ddi, json, resources, or all).",
         ),
     ] = "ddi",
+    resource_type: Annotated[
+        str,
+        typer.Option(
+            "--type",
+            "-t",
+            help="Filter catalog by resource type (default: survey for microdata, or 'all').",
+        ),
+    ] = "survey",
     limit: Annotated[
         int,
         typer.Option(
@@ -2893,6 +2957,7 @@ def harvest(
                 progress_callback=update_progress,
                 catalog_progress_callback=update_cat,
                 workers=workers,
+                resource_type=resource_type,
             )
 
             if not sync_started:

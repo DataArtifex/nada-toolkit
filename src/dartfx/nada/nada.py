@@ -916,6 +916,10 @@ class SearchParameters(BaseModel):
     sort_order: Literal["asc", "desc"] | str | None = Field(default=None, description="Sort order (asc, desc).")
     inc_iso: bool | None = Field(default=None, description="Include ISO3 country codes for the results.")
     format: str | None = Field(default="json", description="Output format (json, xml).")
+    type: str | None = Field(
+        default=None, description="Filter by resource type (e.g. survey for microdata, timeseries, document)."
+    )
+    tab_type: str | None = Field(default=None, description="Filter by catalog tab type.")
 
 
 def _get_caller_name() -> str:

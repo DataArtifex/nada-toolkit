@@ -199,6 +199,10 @@ def test_cli_stats_json_and_markdown(monkeypatch) -> None:
         res_repo_short = runner.invoke(app, ["stats", "-R", tmp_dir, "--country", "AM"])
         assert res_repo_short.exit_code == 0
 
+        # Test --type / -T option
+        res_type = runner.invoke(app, ["stats", "-T", "survey", "--country", "AM"])
+        assert res_type.exit_code == 0
+
 
 def test_cli_version_flag() -> None:
     runner = CliRunner()

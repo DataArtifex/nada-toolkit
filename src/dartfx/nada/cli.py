@@ -227,6 +227,8 @@ def info(
         from dartfx.nada.harvester import fetch_server_stats, format_php_version
 
         studies_count: int | None = None
+        total_resources: int | None = None
+        types_breakdown: dict[str, int] = {}
         st: dict[str, Any] = {}
         try:
             if ver == 5:
@@ -236,16 +238,33 @@ def info(
                     res = search_res.get("result", {})
                     if isinstance(res, dict):
                         try:
-                            studies_count = int(res.get("total", len(res.get("rows", []))))
+                            total_resources = int(res.get("total", len(res.get("rows", []))))
                         except (ValueError, TypeError):
-                            studies_count = len(res.get("rows", []))
+                            total_resources = len(res.get("rows", []))
+                        raw_counts = res.get("search_counts_by_type")
+                        if isinstance(raw_counts, dict):
+                            for k_t, v_t in raw_counts.items():
+                                if k_t:
+                                    try:
+                                        types_breakdown[str(k_t).lower()] = int(v_t)
+                                    except (ValueError, TypeError):
+                                        pass
+                        if "survey" in types_breakdown:
+                            studies_count = types_breakdown["survey"]
+                        else:
+                            studies_count = total_resources
                     elif isinstance(res, list):
                         studies_count = len(res)
+                        total_resources = len(res)
 
             host_to_probe = server.url if server.installation.scheme == "http" else server.installation.clean_hostname
             st = fetch_server_stats(host_to_probe, api_token=api_key)
-            if studies_count is None and st.get("studies"):
+            if studies_count is None and st.get("studies") is not None:
                 studies_count = st.get("studies")
+            if total_resources is None and st.get("total_resources") is not None:
+                total_resources = st.get("total_resources")
+            if not types_breakdown and st.get("types"):
+                types_breakdown = st.get("types")
         except Exception:
             pass
 
@@ -273,11 +292,12 @@ def info(
     table.add_row("Server Hostname", server.installation.clean_hostname)
     catalog_endpoint = server.installation.catalog_url or server.url
     table.add_row("Catalog Base URL", f"[link={catalog_endpoint}]{catalog_endpoint}[/link]")
-    table.add_row("Detected Version", f"v{ver}")
     table.add_row(
-        "Total Studies",
+        "Microdata Studies",
         f"{studies_count:,}" if studies_count is not None else "[dim]Unknown / Unreachable[/dim]",
     )
+    if total_resources is not None and (len(types_breakdown) > 1 or total_resources != studies_count):
+        table.add_row("Total Catalog Resources", f"{total_resources:,}")
     table.add_row("Available Collections", f"{coll_count:,}" if coll_count > 0 else "0 (None or Not Exposed)")
     if server.installation.country:
         country_display = server.installation.country
@@ -320,6 +340,34 @@ def info(
 
     console.print()
     console.print(table)
+
+    if types_breakdown:
+        resource_type_labels: dict[str, str] = {
+            "survey": "Microdata (Surveys & Censuses)",
+            "timeseries": "Time Series Indicators",
+            "geospatial": "Geospatial Data (GIS)",
+            "document": "Documents & Publications",
+            "table": "Tables & Aggregated Data",
+            "image": "Visualizations & Images",
+            "script": "Scripts & Algorithms",
+            "video": "Videos & Multimedia",
+        }
+        types_table = Table(
+            title="Catalog Resource Types Breakdown",
+            box=box.ROUNDED,
+            title_style="bold magenta",
+            header_style="bold cyan",
+        )
+        types_table.add_column("Resource Type", style="white", width=34)
+        types_table.add_column("Type Key", style="dim cyan", width=14)
+        types_table.add_column("Count", justify="right", style="green")
+
+        for t_key, t_count in sorted(types_breakdown.items(), key=lambda x: (-x[1], x[0])):
+            label = resource_type_labels.get(t_key, t_key.replace("_", " ").title())
+            types_table.add_row(label, t_key, f"{t_count:,}")
+
+        console.print()
+        console.print(types_table)
 
     fmt_table = Table(
         title="Supported Metadata & Export Formats",
@@ -646,6 +694,14 @@ def stats(
             help="Local repository directory for caching statistics (defaults to DARTFX_NADA_REPOSITORY or .cache).",
         ),
     ] = None,
+    resource_type: Annotated[
+        str,
+        typer.Option(
+            "--type",
+            "-T",
+            help="Filter study counts by resource type (default: survey for microdata, or 'all').",
+        ),
+    ] = "survey",
     timeout: Annotated[
         int,
         typer.Option(
@@ -746,6 +802,7 @@ def stats(
         descending=descending,
         format=effective_format.value,
         output=output,
+        resource_type=resource_type,
     )
 
 
