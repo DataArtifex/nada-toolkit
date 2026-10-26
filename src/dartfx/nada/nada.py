@@ -385,6 +385,7 @@ class ServerInstallation(BaseModel):
     status: str | None = None
     collections_count: int | None = None
     studies_count: int | None = None
+    surveys_count: int | None = None
     contact_email: str | None = None
     about_url: str | None = None
     id: str | None = None
@@ -1307,3 +1308,12 @@ class NadaServer(BaseModel):
         """Get a single variable's metadata."""
         params = {"id_format": id_format} if id_format else None
         return self.get_request(f"catalog/{idno}/variables/{var_id}", params=params)
+
+    # Survey Aliases (preferred terminology)
+    get_survey = get_study
+    get_survey_ddi = get_study_ddi
+    get_survey_json = get_study_json
+    get_survey_resources = get_study_resources
+    get_survey_croissant = get_study_croissant
+    get_survey_schema = get_study_schema
+    get_latest_surveys = get_latest_studies

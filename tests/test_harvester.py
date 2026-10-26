@@ -930,7 +930,7 @@ def test_display_server_stats_json_and_markdown(monkeypatch, capsys) -> None:
     records_md = display_server_stats(format="markdown")
     captured_md = capsys.readouterr()
     assert len(records_md) == 1
-    assert "| Repository / Server | Country | Ver | PHP | Studies | Latency | Status |" in captured_md.out
+    assert "| Repository / Server | Country | Ver | PHP | Surveys | Latency | Status |" in captured_md.out
     assert "|:---|:---:|:---:|:---:|---:|:---:|:---|" in captured_md.out
     assert "[Armenia Stats](https://microdata.armstat.am)" in captured_md.out
     assert "7.2.19" in captured_md.out
@@ -1117,7 +1117,7 @@ def test_display_server_stats_shows_unresolvable_diagnostics(monkeypatch, capsys
     assert "Service Unavailable (503)" in captured_md
     assert "Catalog Retired (410)" in captured_md
     assert "1 accessible • 2 restricted • 2 offline/inactive (5 servers)" in captured_md
-    assert "42 total studies indexed" in captured_md
+    assert "42 total surveys indexed" in captured_md
 
 
 def test_classify_server_availability() -> None:
@@ -1257,6 +1257,35 @@ def test_fetch_server_stats_resource_types(monkeypatch) -> None:
     # All resources: "all"
     stats_all = fetch_server_stats("mock.server.org", refresh_cache=True, resource_type="all")
     assert stats_all["studies"] == 107
+
+    # Server with 0 surveys (like censusindia.gov.in)
+    def mock_get_zero_surveys(url, **_kwargs):
+        resp = MagicMock()
+        if "api/catalog/search" in url:
+            resp.status_code = 200
+            resp.json = MagicMock(
+                return_value={
+                    "result": {
+                        "total": 40273,
+                        "search_counts_by_type": {
+                            "table": 31245,
+                            "document": 8843,
+                        },
+                        "rows": [],
+                    }
+                }
+            )
+        elif "api/catalog/collections" in url:
+            resp.status_code = 200
+            resp.json = MagicMock(return_value={"result": [{"id": 1}]})
+        return resp
+
+    monkeypatch.setattr("requests.get", mock_get_zero_surveys)
+    stats_zero_survey = fetch_server_stats("mock.zero-surveys.org", refresh_cache=True)
+    assert stats_zero_survey["is_nada"] is True
+    assert stats_zero_survey["studies"] == 0
+    assert stats_zero_survey["total_resources"] == 40273
+    assert "survey" not in stats_zero_survey["types"]
 
 
 def test_fetch_active_studies_resource_type_filter(monkeypatch) -> None:

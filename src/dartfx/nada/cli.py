@@ -251,6 +251,8 @@ def info(
                                         pass
                         if "survey" in types_breakdown:
                             studies_count = types_breakdown["survey"]
+                        elif types_breakdown:
+                            studies_count = 0
                         else:
                             studies_count = total_resources
                     elif isinstance(res, list):
@@ -293,7 +295,7 @@ def info(
     catalog_endpoint = server.installation.catalog_url or server.url
     table.add_row("Catalog Base URL", f"[link={catalog_endpoint}]{catalog_endpoint}[/link]")
     table.add_row(
-        "Microdata Studies",
+        "Surveys",
         f"{studies_count:,}" if studies_count is not None else "[dim]Unknown / Unreachable[/dim]",
     )
     if total_resources is not None and (len(types_breakdown) > 1 or total_resources != studies_count):
@@ -343,7 +345,7 @@ def info(
 
     if types_breakdown:
         resource_type_labels: dict[str, str] = {
-            "survey": "Microdata (Surveys & Censuses)",
+            "survey": "Surveys (Microdata)",
             "timeseries": "Time Series Indicators",
             "geospatial": "Geospatial Data (GIS)",
             "document": "Documents & Publications",
@@ -387,10 +389,10 @@ def info(
         "Data Documentation Initiative CodeBook 2.5 XML specification",
     )
     fmt_table.add_row(
-        "Study JSON",
+        "Survey JSON",
         "json",
         "/catalog/json/{id}",
-        "Comprehensive study metadata, sampling, and variable JSON",
+        "Comprehensive survey metadata, sampling, and variable JSON",
     )
     fmt_table.add_row(
         "External Resources",
@@ -414,7 +416,7 @@ def info(
         "Schema.org Dataset",
         "schema",
         "/catalog/{id}",
-        "Google Dataset Search JSON-LD markup embedded in study landing pages",
+        "Google Dataset Search JSON-LD markup embedded in survey landing pages",
     )
 
     console.print(fmt_table)
@@ -489,7 +491,7 @@ def collections(
 
 @app.command()
 def search(
-    query: Annotated[str, typer.Argument(help="Search query for study metadata")] = "*",
+    query: Annotated[str, typer.Argument(help="Search query for survey metadata")] = "*",
     hostname: Annotated[
         str,
         typer.Option(
@@ -518,7 +520,7 @@ def search(
         typer.Option("--api-key", "-k", envvar=["DARTFX_NADA_API_KEY", "NADA_API_KEY"], help="API Key"),
     ] = None,
 ) -> None:
-    """Search catalog studies."""
+    """Search catalog surveys."""
     server = get_server(hostname, api_key)
     params = SearchParameters(sk=query, country=country, ps=limit, sort_by=sort, sort_order=order)
 
@@ -559,7 +561,7 @@ def search(
         return
 
     table = Table(title=f"Search Results for '{query}' on {hostname} (Total: {total})")
-    table.add_column("Study IDNO", style="cyan")
+    table.add_column("Survey IDNO", style="cyan")
     table.add_column("Title", style="white")
     table.add_column("Nation / Country", style="green")
     table.add_column("Created", style="dim")
@@ -578,9 +580,9 @@ def search(
     console.print(table)
 
 
-@app.command()
-def study(
-    identifier: Annotated[str, typer.Argument(help="Study IDNO or numeric identifier")],
+@app.command(name="survey")
+def survey(
+    identifier: Annotated[str, typer.Argument(help="Survey IDNO or numeric identifier")],
     hostname: Annotated[
         str,
         typer.Option(
@@ -599,10 +601,10 @@ def study(
         typer.Option("--api-key", "-k", envvar=["DARTFX_NADA_API_KEY", "NADA_API_KEY"], help="API Key"),
     ] = None,
 ) -> None:
-    """Get metadata or download an export format (ddi, json, resources, croissant, schema) for a study."""
+    """Get metadata or download an export format (ddi, json, resources, croissant, schema) for a survey."""
     server = get_server(hostname, api_key)
 
-    with console.status(f"[bold green]Fetching study '{identifier}' from {hostname}..."):
+    with console.status(f"[bold green]Fetching survey '{identifier}' from {hostname}..."):
         try:
             if export == "ddi":
                 result = server.get_study_ddi(identifier)
@@ -625,6 +627,10 @@ def study(
         except Exception as e:
             console.print(f"[bold red]Error:[/] {e}")
             raise typer.Exit(code=1) from e
+
+
+# Keep 'study' command as alias for backward compatibility
+app.command(name="study", help="Alias for 'survey' command.")(survey)
 
 
 # Mount harvest command from harvester module
@@ -658,7 +664,7 @@ def stats(
         typer.Option(
             "--query",
             "-q",
-            help="Filter studies by keyword query.",
+            help="Filter surveys by keyword query.",
         ),
     ] = None,
     api_token: Annotated[
@@ -699,7 +705,7 @@ def stats(
         typer.Option(
             "--type",
             "-T",
-            help="Filter study counts by resource type (default: survey for microdata, or 'all').",
+            help="Filter survey counts by resource type (default: survey for microdata, or 'all').",
         ),
     ] = "survey",
     timeout: Annotated[
@@ -723,14 +729,14 @@ def stats(
         typer.Option(
             "--sort",
             "-S",
-            help="Sort results by field: name (default), country, studies, latency, php, status.",
+            help="Sort results by field: name (default), country, surveys, latency, php, status.",
         ),
     ] = "name",
     desc: Annotated[
         bool,
         typer.Option(
             "--desc",
-            help="Sort in descending order (default for studies).",
+            help="Sort in descending order (default for surveys).",
         ),
     ] = False,
     asc: Annotated[
@@ -772,7 +778,7 @@ def stats(
         ),
     ] = None,
 ) -> None:
-    """Display live study count, latency, and status for NADA servers."""
+    """Display live survey count, latency, and status for NADA servers."""
     from dartfx.nada.harvester import display_server_stats
 
     descending: bool | None = None
@@ -859,7 +865,7 @@ def errors(
         typer.Option(
             "--details",
             "-d",
-            help="Show individual failed study IDNOs and reasons.",
+            help="Show individual failed survey IDNOs and reasons.",
         ),
     ] = False,
 ) -> None:

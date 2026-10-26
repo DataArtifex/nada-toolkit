@@ -94,6 +94,10 @@ def test_cli_study_command(monkeypatch) -> None:
     assert res_study.exit_code == 0
     assert "Sample Study" in res_study.stdout
 
+    res_survey = runner.invoke(app, ["survey", "MWI-2026"])
+    assert res_survey.exit_code == 0
+    assert "Sample Study" in res_survey.stdout
+
     res_ddi = runner.invoke(app, ["study", "MWI-2026", "--export", "ddi"])
     assert res_ddi.exit_code == 0
     assert "<codeBook>" in res_ddi.stdout
@@ -195,10 +199,64 @@ def test_cli_info_command_with_resource_types_breakdown(monkeypatch) -> None:
     runner = CliRunner()
     res_info = runner.invoke(app, ["info", "microdata.nigerianstat.gov.ng"])
     assert res_info.exit_code == 0
-    assert "Microdata Studies" in res_info.stdout
+    assert "Surveys" in res_info.stdout
     assert "79" in res_info.stdout
     assert "Total Catalog Resources" in res_info.stdout
     assert "107" in res_info.stdout
     assert "Catalog Resource Types Breakdown" in res_info.stdout
-    assert "Microdata (Surveys & Censuses)" in res_info.stdout
+    assert "Surveys (Microdata)" in res_info.stdout
+    assert "Documents & Publications" in res_info.stdout
+
+
+def test_cli_info_command_with_zero_surveys(monkeypatch) -> None:
+    from dartfx.nada.nada import ServerInstallation
+
+    class MockServerZeroSurveys:
+        installation = ServerInstallation(
+            name="Census Digital Library",
+            clean_hostname="censusindia.gov.in",
+            country="India",
+            country_code="IN",
+            url="https://censusindia.gov.in/nada",
+        )
+        url = "https://censusindia.gov.in/nada"
+
+        def detect_server_version(self):
+            return 5
+
+        def get_collections(self):
+            return [{"id": 1, "title": "Census"}]
+
+        def search(self, _params):
+            return {
+                "result": {
+                    "total": 40273,
+                    "search_counts_by_type": {
+                        "table": 31245,
+                        "document": 8843,
+                    },
+                }
+            }
+
+    monkeypatch.setattr("dartfx.nada.cli.get_server", lambda *_args, **_kwargs: MockServerZeroSurveys())
+    monkeypatch.setattr(
+        "dartfx.nada.harvester.fetch_server_stats",
+        lambda *_args, **_kwargs: {
+            "is_nada": True,
+            "studies": 0,
+            "total_resources": 40273,
+            "types": {"table": 31245, "document": 8843},
+            "collections": 1,
+            "version": "5",
+        },
+    )
+
+    runner = CliRunner()
+    res_info = runner.invoke(app, ["info", "censusindia.gov.in"])
+    assert res_info.exit_code == 0
+    assert "Surveys" in res_info.stdout
+    assert " 0 " in res_info.stdout or "│ 0 " in res_info.stdout
+    assert "Total Catalog Resources" in res_info.stdout
+    assert "40,273" in res_info.stdout
+    assert "Tables & Aggregated Data" in res_info.stdout
     assert "Documents & Publications" in res_info.stdout

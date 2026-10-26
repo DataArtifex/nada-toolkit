@@ -1432,12 +1432,10 @@ def _probe_nada_url(
                             if types_counts:
                                 res["types"] = types_counts
                                 clean_rt = (resource_type or "survey").strip().lower()
-                                if clean_rt != "all" and clean_rt in types_counts:
-                                    res["studies"] = types_counts[clean_rt]
-                                elif clean_rt == "survey" and "survey" in types_counts:
-                                    res["studies"] = types_counts["survey"]
-                                else:
+                                if clean_rt == "all":
                                     res["studies"] = total_all
+                                else:
+                                    res["studies"] = types_counts.get(clean_rt, 0)
                             else:
                                 res["studies"] = total_all
                         elif isinstance(res_dict, list):
@@ -1568,17 +1566,23 @@ def fetch_server_stats(
                     dt = datetime.fromisoformat(cached_at_str)
                     age_hours = (datetime.now(UTC) - dt).total_seconds() / 3600.0
                     if age_hours < cache_ttl_hours:
-                        # Auto-invalidate stale false-positive cache entries (e.g. 0-study 'is_nada=True')
-                        if cdata.get("is_nada") and cdata.get("studies", 0) == 0 and not cdata.get("requires_token"):
+                        # Auto-invalidate stale false-positive cache entries (e.g. 0-study with no resources)
+                        total_res = cdata.get("total_resources", 0)
+                        if (
+                            cdata.get("is_nada")
+                            and cdata.get("studies", 0) == 0
+                            and total_res == 0
+                            and not cdata.get("requires_token")
+                        ):
                             pass  # Re-verify live using strict payload validation
                         else:
                             cdata["cached"] = True
                             if cdata.get("types"):
                                 clean_rt = (resource_type or "survey").strip().lower()
-                                if clean_rt != "all" and clean_rt in cdata["types"]:
-                                    cdata["studies"] = cdata["types"][clean_rt]
-                                elif clean_rt == "all":
+                                if clean_rt == "all":
                                     cdata["studies"] = cdata.get("total_resources", cdata.get("studies"))
+                                else:
+                                    cdata["studies"] = cdata["types"].get(clean_rt, 0)
                             return cdata
         except Exception:
             pass
@@ -1744,6 +1748,14 @@ def display_server_stats(
                 console.print(f"[bold red]No NADA servers found matching filter '{server}'.[/bold red]")
         return []
 
+    clean_rt = (resource_type or "survey").strip().lower()
+    if clean_rt == "all":
+        count_col_title = "Resources"
+    elif clean_rt == "survey":
+        count_col_title = "Surveys"
+    else:
+        count_col_title = clean_rt.replace("_", " ").title()
+
     table = Table(
         title=f"NADA Server Statistics ({len(installations)} servers)",
         header_style="bold cyan",
@@ -1755,7 +1767,7 @@ def display_server_stats(
     table.add_column("PHP", justify="center")
     if show_env:
         table.add_column("Web Server", style="dim", justify="left")
-    table.add_column("Studies", justify="right", style="cyan")
+    table.add_column(count_col_title, justify="right", style="cyan")
     table.add_column("Latency", justify="center")
     table.add_column("Status", justify="left")
 
@@ -1812,10 +1824,21 @@ def display_server_stats(
             return val
         return str(val)
 
+    def _abbrev_count(val: Any) -> str:
+        try:
+            n = float(val)
+            if n >= 1_000_000:
+                return f"{n / 1_000_000:.1f}M"
+            if n >= 1_000:
+                return f"{n / 1_000:.1f}k"
+            return str(int(n))
+        except (ValueError, TypeError):
+            return str(val)
+
     clean_sort = (sort_by or "name").strip().lower()
     if descending is not None:
         reverse_sort = descending
-    elif clean_sort in ("studies", "count"):
+    elif clean_sort in ("surveys", "survey", "studies", "count"):
         reverse_sort = True
     else:
         reverse_sort = False
@@ -1826,7 +1849,7 @@ def display_server_stats(
             return (inst.name or inst.clean_hostname or "").lower()
         elif clean_sort in ("country", "cc"):
             return (inst.country_code or "ZZ").lower()
-        elif clean_sort in ("studies", "count"):
+        elif clean_sort in ("surveys", "survey", "studies", "count"):
             try:
                 return int(stat.get("studies") or 0)
             except (ValueError, TypeError):
@@ -1903,6 +1926,7 @@ def display_server_stats(
             "version": ver_disp if ver_disp != "-" else None,
             "php_version": php_raw,
             "web_server": stat.get("web_server") if is_nada else None,
+            "surveys": studies_int,
             "studies": studies_int,
             "total_resources": stat.get("total_resources"),
             "types": stat.get("types"),
@@ -1927,10 +1951,12 @@ def display_server_stats(
     if clean_fmt in ("markdown", "md"):
         md_lines: list[str] = []
         if show_env:
-            md_lines.append("| Repository / Server | Country | Ver | PHP | Web Server | Studies | Latency | Status |")
+            md_lines.append(
+                f"| Repository / Server | Country | Ver | PHP | Web Server | {count_col_title} | Latency | Status |"
+            )
             md_lines.append("|:---|:---:|:---:|:---:|:---|---:|:---:|:---|")
         else:
-            md_lines.append("| Repository / Server | Country | Ver | PHP | Studies | Latency | Status |")
+            md_lines.append(f"| Repository / Server | Country | Ver | PHP | {count_col_title} | Latency | Status |")
             md_lines.append("|:---|:---:|:---:|:---:|---:|:---:|:---|")
 
         for r, (_inst, stat) in zip(records, stat_results, strict=False):
@@ -1948,7 +1974,15 @@ def display_server_stats(
             else:
                 php_cell = php_val
 
-            studies_cell = f"{r['studies']:,}" if r["studies"] is not None else "-"
+            studies_int = r["studies"]
+            tot_res = r.get("total_resources")
+            if studies_int is not None:
+                if clean_rt == "survey" and studies_int == 0 and tot_res and tot_res > 0:
+                    studies_cell = f"0 ({_abbrev_count(tot_res)} res)"
+                else:
+                    studies_cell = f"{studies_int:,}"
+            else:
+                studies_cell = "-"
 
             lat_badge = format_response_latency(
                 r["latency_seconds"],
@@ -1977,11 +2011,17 @@ def display_server_stats(
             restricted_count = sum(1 for r in records if r.get("availability") == "restricted")
             offline_count = sum(1 for r in records if r.get("availability") == "offline")
             total_studies = sum(int(r.get("studies") or 0) for r in records if r.get("is_nada"))
+            if clean_rt == "all":
+                type_desc = "catalog resources"
+            elif clean_rt == "survey":
+                type_desc = "surveys"
+            else:
+                type_desc = f"{clean_rt} resources"
             md_lines.append("")
             md_lines.append(
                 f"_Summary: {accessible_count} accessible • {restricted_count} restricted • "
                 f"{offline_count} offline/inactive ({len(records)} servers) • "
-                f"{total_studies:,} total studies indexed._"
+                f"{total_studies:,} total {type_desc} indexed._"
             )
 
         if out_path:
@@ -2001,7 +2041,9 @@ def display_server_stats(
             "version",
             "php_version",
             "web_server",
+            "surveys",
             "studies",
+            "total_resources",
             "latency_seconds",
             "status",
             "availability",
@@ -2026,7 +2068,12 @@ def display_server_stats(
         restricted_count = sum(1 for r in records if r.get("availability") == "restricted")
         offline_count = sum(1 for r in records if r.get("availability") == "offline")
         total_studies = sum(int(r.get("studies") or 0) for r in records if r.get("is_nada"))
-        type_desc = "microdata studies" if (resource_type or "survey").lower() == "survey" else "resources"
+        if clean_rt == "all":
+            type_desc = "resources"
+        elif clean_rt == "survey":
+            type_desc = "surveys"
+        else:
+            type_desc = f"{clean_rt} resources"
         table.caption = (
             f"[bold]Total:[/] [green]{accessible_count}[/green] accessible"
             f" • [yellow]{restricted_count}[/yellow] restricted"
@@ -2046,7 +2093,18 @@ def display_server_stats(
             nada_ver=stat.get("version") or inst.version,
             is_online=bool(stat.get("is_nada")),
         )
-        studies_disp = _format_count(stat.get("studies", 0)) if stat.get("is_nada") else "-"
+        is_nada = bool(stat.get("is_nada"))
+        studies_val = stat.get("studies")
+        tot_res = stat.get("total_resources")
+        if not is_nada:
+            studies_disp = "-"
+        elif studies_val is not None:
+            if clean_rt == "survey" and (studies_val == 0 or str(studies_val) == "0") and tot_res and tot_res > 0:
+                studies_disp = f"0 [dim]({_abbrev_count(tot_res)} res)[/dim]"
+            else:
+                studies_disp = _format_count(studies_val)
+        else:
+            studies_disp = "-"
 
         lat = stat.get("latency_seconds")
         is_err = bool(stat.get("error"))
@@ -2332,6 +2390,10 @@ def fetch_active_studies(
             pass
 
     return active_studies
+
+
+# Survey Aliases (preferred terminology)
+fetch_active_surveys = fetch_active_studies
 
 
 def fetch_study_record(
@@ -2760,7 +2822,7 @@ def harvest(
         typer.Option(
             "--query",
             "-q",
-            help="Keyword query for searching study metadata.",
+            help="Keyword query for searching survey metadata.",
         ),
     ] = None,
     since_date: Annotated[
@@ -2775,7 +2837,7 @@ def harvest(
         typer.Option(
             "--id",
             "--idno",
-            help="Harvest a single specific study by IDNO.",
+            help="Harvest a single specific survey by IDNO.",
         ),
     ] = None,
     formats: Annotated[
@@ -2799,7 +2861,7 @@ def harvest(
         typer.Option(
             "--limit",
             "-l",
-            help="Maximum number of studies to harvest per server (0 for unlimited).",
+            help="Maximum number of surveys to harvest per server (0 for unlimited).",
         ),
     ] = 25,
     repo_dir: Annotated[
@@ -2832,7 +2894,7 @@ def harvest(
         typer.Option(
             "--retry-errors",
             "--retry",
-            help="Retry downloading studies that previously encountered errors.",
+            help="Retry downloading surveys that previously encountered errors.",
         ),
     ] = False,
     workers: Annotated[
@@ -2961,7 +3023,7 @@ def harvest(
             )
 
             if not sync_started:
-                prog.update(task, completed=0, total=0, filename="No active studies")
+                prog.update(task, completed=0, total=0, filename="No active surveys")
             else:
                 prog.update(task, filename="Complete")
 

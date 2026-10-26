@@ -162,11 +162,12 @@ def test_cli_stats_json_and_markdown(monkeypatch) -> None:
     assert len(parsed) == 1
     assert parsed[0]["name"] == "Armenia Stats"
     assert parsed[0]["studies"] == 26
+    assert parsed[0]["surveys"] == 26
 
     # Test --markdown flag
     res_md = runner.invoke(app, ["stats", "--markdown", "--country", "AM"])
     assert res_md.exit_code == 0
-    assert "| Repository / Server | Country | Ver | PHP | Studies | Latency | Status |" in res_md.stdout
+    assert "| Repository / Server | Country | Ver | PHP | Surveys | Latency | Status |" in res_md.stdout
     assert "[Armenia Stats](https://microdata.armstat.am)" in res_md.stdout
 
     # Test --md alias

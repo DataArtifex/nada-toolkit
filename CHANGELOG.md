@@ -13,15 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `--repo-dir` / `-R` option to `dartfx-nada stats` CLI command to store statistics cache (`.stats_cache.json`) in the designated repository directory instead of defaulting to `./.cache`.
   - Added support for both `DARTFX_NADA_REPOSITORY` and `DARTFX_NADA_REPOSITORY_ROOT` environment variables across `stats`, `harvest`, `errors`, and token resolution subsystems.
   - Updated `fetch_server_stats` and `display_server_stats` to automatically inspect `DARTFX_NADA_REPOSITORY` / `DARTFX_NADA_REPOSITORY_ROOT` when `repo_root` is not explicitly provided.
-- **Default Focus on Microdata Studies & Catalog Resource Types Breakdown** (`dartfx-nada info`, `dartfx-nada stats`, `dartfx-nada harvest`):
-  - Shifted default study count reporting across `stats`, `harvest`, and `info` to focus exclusively on microdata (`survey` resource type), preventing document, table, image, video, and script entries from artificially inflating study counts or triggering invalid DDI downloads.
-  - Enriched `dartfx-nada info` to display primary "Microdata Studies" as well as "Total Catalog Resources" when multiple resource types exist.
-  - Added a dedicated "Catalog Resource Types Breakdown" table to `dartfx-nada info` categorizing all catalog entries (Microdata, Time Series Indicators, Geospatial Data, Documents & Publications, Tables, Visualizations & Images, Scripts & Algorithms, Videos & Multimedia) with exact counts.
+- **Consistent Survey Terminology (`survey`/`surveys` vs `study`/`studies`)**:
+  - Adopted `survey`/`surveys` consistently across CLI commands, options, outputs, tables, progress indicators, models, and documentation to align with NADA's native catalog resource type taxonomy.
+  - Promoted `dartfx-nada survey <idno>` as the primary CLI command for fetching survey exports and landing pages, while preserving `dartfx-nada study` as a seamless command alias for backward compatibility.
+  - Renamed primary statistics columns to `Surveys` (when filtering for microdata surveys, default) and `Resources` (when reporting all catalog entries).
+  - Added `get_survey*` alias methods on `NadaServer` (`get_survey`, `get_survey_ddi`, `get_survey_json`, `get_survey_resources`, `get_survey_croissant`, `get_survey_schema`, `get_latest_surveys`) alongside existing `get_study*` methods.
+  - Preserved backward compatibility in JSON and CSV serialization by providing both `"surveys"` and `"studies"` keys in harvested manifests and server statistics records.
+- **Default Focus on Microdata Surveys & Catalog Resource Types Breakdown** (`dartfx-nada info`, `dartfx-nada stats`, `dartfx-nada harvest`):
+  - Shifted default count reporting across `stats`, `harvest`, and `info` to focus exclusively on microdata (`survey` resource type), preventing document, table, image, video, and script entries from artificially inflating counts or triggering invalid DDI downloads.
+  - Enriched `dartfx-nada info` to display primary "Surveys" as well as "Total Catalog Resources" when multiple resource types exist.
+  - Added a dedicated "Catalog Resource Types Breakdown" table to `dartfx-nada info` categorizing all catalog entries (Microdata Surveys, Time Series Indicators, Geospatial Data, Documents & Publications, Tables, Visualizations & Images, Scripts & Algorithms, Videos & Multimedia) with exact counts.
   - Added `--type` / `-T` option to `dartfx-nada stats` (defaulting to `survey`, with support for `'all'` or specific resource types) and `--type` / `-t` option to `dartfx-nada harvest`.
+  - Dynamically names the stats count column: `Surveys` when filtering for microdata (`--type survey`, default) and `Resources` when reporting all catalog entries (`--type all`).
+  - Added informative non-microdata indicator in `stats`: When a repository contains 0 microdata surveys but hosts other catalog resources (e.g. Census Digital Library with 40,273 tables and documents), `stats` displays `0 (40.3k res)` rather than an ambiguous `0` or false positive survey count.
   - Added `type` and `tab_type` parameter fields to `SearchParameters` Pydantic model in `dartfx.nada.nada`.
 
 ### Fixed
 
+- **Zero-Survey Study Count Fallback** (`dartfx-nada info`, `dartfx-nada stats`):
+  - Fixed an issue where catalogs with 0 microdata surveys and multiple other resource types (e.g. `censusindia.gov.in`) erroneously fell back to total resources in `Microdata Studies` and `fetch_server_stats`. Now correctly assigns `0` to microdata studies when `search_counts_by_type` is present and contains no `survey` key.
 - **Subpath URL Resolution in Harvester** (`dartfx-nada harvest`):
   - Fixed an issue where servers hosted under custom URL subpaths (e.g. DataFirst at `https://www.datafirst.uct.ac.za/dataportal`) reported 0 active studies during `dartfx-nada harvest` because `ServerHarvester` stripped subpaths and probed the root domain.
   - Enhanced `parse_server_url` to automatically resolve registered catalog URLs from the installations registry when given a bare hostname.
