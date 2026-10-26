@@ -5,10 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.2] - 2026-10-25
+## [0.4.2] - 2026-10-26
 
 ### Added
 
+- **Machine-Actionable Standardized JSON Output & CLI Parity**:
+  - Added `--json`, `--markdown`/`--md`, and `-o`/`--output` support to `dartfx-nada list` and `installations`.
+  - Standardized `installations`/`list` JSON schema (`platform="nada"`, `hostname`, `url`, `country`, `country_code`).
+  - Added standard `platform: "nada"` and `datasets` (matching `surveys`/`studies`) properties to `stats` JSON records; added `-w`/`--workers` parameter to `stats` CLI.
+  - Standardized `harvest` JSON envelope (`--json`, `-o`/`--output`), emitting structured status, duration, summary counts (`datasets`, `added`, `updated`, `deleted`, `unchanged`, `errors`), server breakdowns, and error lists.
+  - Added Rich execution summary tables, completion panel, and error categorization table matching Dataverse and CKAN.
+  - Added `-r`, `-R`, `-d` option aliases for repository root in `harvest`.
+  - Added `--json` flag to `errors` command for pipeline introspection.
 - **Repository Root Caching & Environment Variable Support** (`dartfx-nada stats`):
   - Added `--repo-dir` / `-R` option to `dartfx-nada stats` CLI command to store statistics cache (`.stats_cache.json`) in the designated repository directory instead of defaulting to `./.cache`.
   - Added support for both `DARTFX_NADA_REPOSITORY` and `DARTFX_NADA_REPOSITORY_ROOT` environment variables across `stats`, `harvest`, `errors`, and token resolution subsystems.

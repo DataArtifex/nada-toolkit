@@ -1701,6 +1701,7 @@ def display_server_stats(
     format: str = "table",
     output: str | Path | None = None,
     resource_type: str | None = "survey",
+    workers: int = 8,
 ) -> list[dict[str, Any]]:
     """Display live study and collection counts for NADA servers."""
     clean_fmt = (format or "table").strip().lower()
@@ -1805,7 +1806,7 @@ def display_server_stats(
         transient=True,
     ) as prog:
         task = prog.add_task("[bold green]Querying NADA servers...", total=len(installations))
-        with ThreadPoolExecutor(max_workers=min(12, len(installations))) as executor:
+        with ThreadPoolExecutor(max_workers=max(1, min(workers, len(installations)))) as executor:
             future_to_inst = {executor.submit(_query_stat, inst): inst for inst in installations}
             for future in as_completed(future_to_inst):
                 inst, stat = future.result()
@@ -1918,6 +1919,7 @@ def display_server_stats(
         )
 
         record: dict[str, Any] = {
+            "platform": "nada",
             "name": inst.name or inst.clean_hostname,
             "url": inst.catalog_url or inst.url,
             "hostname": inst.clean_hostname,
@@ -1926,6 +1928,7 @@ def display_server_stats(
             "version": ver_disp if ver_disp != "-" else None,
             "php_version": php_raw,
             "web_server": stat.get("web_server") if is_nada else None,
+            "datasets": studies_int,
             "surveys": studies_int,
             "studies": studies_int,
             "total_resources": stat.get("total_resources"),
@@ -2869,6 +2872,8 @@ def harvest(
         typer.Option(
             "--repo-dir",
             "-r",
+            "-R",
+            "-d",
             envvar=["DARTFX_NADA_REPOSITORY", "DARTFX_NADA_REPOSITORY_ROOT"],
             help="Local repository directory for harvested files.",
         ),
@@ -2920,8 +2925,24 @@ def harvest(
             help="Enable verbose output and HTTP request logging.",
         ),
     ] = False,
-) -> None:
+    json_output: Annotated[
+        bool,
+        typer.Option(
+            "--json",
+            help="Output harvest execution results and summary as JSON.",
+        ),
+    ] = False,
+    output: Annotated[
+        str | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Write harvest execution summary to file instead of console (default: dartfx-nada.harvest.json).",
+        ),
+    ] = None,
+) -> dict[str, Any]:
     """Harvest and incrementally sync NADA metadata records into local storage."""
+    start_time = time.time()
     base_repo = Path(repo_dir).resolve() if repo_dir else Path.cwd() / "repository"
     base_repo.mkdir(parents=True, exist_ok=True)
 
@@ -2932,27 +2953,74 @@ def harvest(
     )
 
     if not installations:
+        if json_output:
+            empty_result: dict[str, Any] = {
+                "platform": "nada",
+                "status": "failed",
+                "timestamp": datetime.now(UTC).isoformat(),
+                "duration_seconds": round(time.time() - start_time, 2),
+                "dry_run": dry_run,
+                "summary": {
+                    "datasets": 0,
+                    "studies": 0,
+                    "surveys": 0,
+                    "added": 0,
+                    "updated": 0,
+                    "unchanged": 0,
+                    "deleted": 0,
+                    "errors": 1,
+                },
+                "servers": [],
+                "errors": [
+                    {
+                        "server": server,
+                        "pid": "-",
+                        "url": None,
+                        "format": "-",
+                        "error_type": "NoServersFound",
+                        "reason": f"No NADA installations found matching '{server}'.",
+                    }
+                ],
+                "parameters": {
+                    "server": server,
+                    "country": country,
+                    "query": query,
+                    "since": since_date,
+                    "study_id": study_id,
+                    "formats": formats,
+                    "limit": limit,
+                    "resource_type": resource_type,
+                },
+            }
+            if output:
+                out_str = str(output).strip()
+                out_p = Path("dartfx-nada.harvest.json" if out_str.lower() in ("auto", "__auto__", "-") else out_str)
+                out_p.parent.mkdir(parents=True, exist_ok=True)
+                out_p.write_text(json.dumps(empty_result, indent=2, default=str) + "\n", encoding="utf-8")
+            else:
+                console.print_json(json.dumps(empty_result, default=str))
+            raise typer.Exit(code=1)
+
         console.print(f"[bold red]No NADA installations found matching '{server}'.[/bold red]")
         raise typer.Exit(code=1)
 
-    console.print(
-        Panel(
-            f"[bold cyan]NADA Metadata Harvester[/bold cyan]\n"
-            f"Servers: {len(installations)} | Formats: {formats} | Limit: {limit or 'Unlimited'} | Workers: {workers}\n"
-            f"Storage: {base_repo}",
-            expand=False,
+    if not json_output:
+        limit_desc = limit or "Unlimited"
+        console.print(
+            Panel(
+                f"[bold cyan]NADA Metadata Harvester[/bold cyan]\n"
+                f"Servers: {len(installations)} | Formats: {formats} | Limit: {limit_desc} | Workers: {workers}\n"
+                f"Storage: {base_repo}",
+                expand=False,
+            )
         )
-    )
 
-    summary_table = Table(title="Harvest Summary", header_style="bold magenta", show_header=True)
-    summary_table.add_column("Server", style="cyan")
-    summary_table.add_column("Studies", justify="right", style="white")
-    summary_table.add_column("Added", justify="right", style="green")
-    summary_table.add_column("Updated", justify="right", style="yellow")
-    summary_table.add_column("Unchanged", justify="right", style="dim")
-    summary_table.add_column("Errors", justify="right", style="red")
+    overall_stats = {"datasets": 0, "added": 0, "updated": 0, "deleted": 0, "unchanged": 0, "errors": 0}
+    summary_rows: list[tuple[str, str | None, int, int, int, int, int, int]] = []
+    all_errors: list[dict[str, Any]] = []
 
-    total_harvest_errors = 0
+    progress_console = Console(quiet=True) if json_output else console
+
     for inst in installations:
         host = inst.url or inst.clean_hostname
         harvester = ServerHarvester(host, base_repo)
@@ -2965,7 +3033,7 @@ def harvest(
             MofNCompleteColumn(),
             TimeElapsedColumn(),
             TextColumn("[dim]{task.fields[filename]}[/dim]"),
-            console=console,
+            console=progress_console,
         ) as prog:
             task = prog.add_task(
                 f"Syncing {inst.clean_hostname}...",
@@ -3027,24 +3095,241 @@ def harvest(
             else:
                 prog.update(task, filename="Complete")
 
-        err_count = len(results.get("errors", []))
-        total_harvest_errors += err_count
+        num_datasets = len(results.get("datasets", []))
+        num_added = len(results.get("added", []))
+        num_updated = len(results.get("updated", []))
+        num_unchanged = len(results.get("unchanged", []))
+        num_deleted = len(results.get("deleted", []))
+        err_list = results.get("errors", [])
+        num_errors = len(err_list)
+
+        overall_stats["datasets"] += num_datasets
+        overall_stats["added"] += num_added
+        overall_stats["updated"] += num_updated
+        overall_stats["unchanged"] += num_unchanged
+        overall_stats["deleted"] += num_deleted
+        overall_stats["errors"] += num_errors
+
+        for err in err_list:
+            if isinstance(err, dict):
+                err_dict = dict(err)
+                if not err_dict.get("server"):
+                    err_dict["server"] = inst.clean_hostname
+                all_errors.append(err_dict)
+            else:
+                all_errors.append({"server": inst.clean_hostname, "pid": str(err), "reason": str(err)})
+
+        summary_rows.append(
+            (
+                inst.clean_hostname,
+                inst.country,
+                num_datasets,
+                num_added,
+                num_updated,
+                num_unchanged,
+                num_deleted,
+                num_errors,
+            )
+        )
+
+    duration_sec = round(time.time() - start_time, 2)
+    has_successes = (overall_stats["added"] + overall_stats["updated"] + overall_stats["unchanged"]) > 0
+    if overall_stats["errors"] == 0:
+        overall_status = "success"
+    elif has_successes:
+        overall_status = "partial_success"
+    else:
+        overall_status = "failed"
+
+    servers_list: list[dict[str, Any]] = []
+    for host_name, country_name, datasets_cnt, added, updated, unchanged, deleted, errors in summary_rows:
+        server_url = f"https://{host_name}" if not host_name.startswith("http") else host_name
+        servers_list.append(
+            {
+                "hostname": host_name,
+                "url": server_url,
+                "country": country_name or "Global",
+                "datasets": datasets_cnt,
+                "studies": datasets_cnt,
+                "surveys": datasets_cnt,
+                "added": added,
+                "updated": updated,
+                "unchanged": unchanged,
+                "deleted": deleted,
+                "errors": errors,
+            }
+        )
+
+    errors_list: list[dict[str, Any]] = []
+    for err in all_errors:
+        if isinstance(err, dict):
+            pid_raw = err.get("pid") or err.get("key", "Unknown")
+            fmt_display = err.get("format", "-")
+            reason_display = err.get("reason", "Unknown error")
+            err_server = err.get("server") or (pid_raw.split(" (")[0] if " (" in str(pid_raw) else None)
+            dataset_url = err.get("url") or format_dataset_url(pid_raw, host=err_server)
+        else:
+            pid_raw = str(err)
+            fmt_display = "-"
+            reason_display = "Error occurred"
+            err_server = None
+            dataset_url = format_dataset_url(pid_raw)
+
+        errors_list.append(
+            {
+                "server": err_server,
+                "pid": pid_raw,
+                "url": dataset_url,
+                "format": fmt_display,
+                "error_type": classify_harvest_error(reason_display),
+                "reason": reason_display,
+            }
+        )
+
+    harvest_result: dict[str, Any] = {
+        "platform": "nada",
+        "status": overall_status,
+        "timestamp": datetime.now(UTC).isoformat(),
+        "duration_seconds": duration_sec,
+        "dry_run": dry_run,
+        "summary": {
+            "datasets": overall_stats["datasets"],
+            "studies": overall_stats["datasets"],
+            "surveys": overall_stats["datasets"],
+            "added": overall_stats["added"],
+            "updated": overall_stats["updated"],
+            "unchanged": overall_stats["unchanged"],
+            "deleted": overall_stats["deleted"],
+            "errors": overall_stats["errors"],
+        },
+        "servers": servers_list,
+        "errors": errors_list,
+        "parameters": {
+            "server": server,
+            "country": country,
+            "query": query,
+            "since": since_date,
+            "study_id": study_id,
+            "formats": formats,
+            "limit": limit,
+            "resource_type": resource_type,
+        },
+    }
+
+    if output:
+        out_str = str(output).strip()
+        out_path = Path("dartfx-nada.harvest.json" if out_str.lower() in ("auto", "__auto__", "-") else out_str)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(harvest_result, indent=2, default=str) + "\n", encoding="utf-8")
+        if not json_output:
+            console.print(f"[bold green]✓ Harvest summary saved to:[/] {out_path}")
+
+    if json_output:
+        if not output:
+            console.print_json(json.dumps(harvest_result, default=str))
+        return harvest_result
+
+    console.print("\n[bold green]================ Sync Summary Report ================[/bold green]\n")
+    summary_table = Table(title="Harvest Summary", header_style="bold magenta", show_header=True)
+    summary_table.add_column("Server", style="cyan")
+    summary_table.add_column("Country", style="dim")
+    summary_table.add_column("Studies", justify="right", style="white")
+    summary_table.add_column("Added (+)", justify="right", style="green")
+    summary_table.add_column("Updated (Δ)", justify="right", style="yellow")
+    summary_table.add_column("Unchanged (=)", justify="right", style="dim cyan")
+    summary_table.add_column("Deleted (-)", justify="right", style="red")
+    summary_table.add_column("Errors (!)", justify="right", style="bold red")
+
+    for host_name, country_name, datasets_cnt, added, updated, unchanged, deleted, errors in summary_rows:
+        server_url = f"https://{host_name}" if not host_name.startswith("http") else host_name
+        clickable_host = f"[link={server_url}]{host_name}[/link]"
         summary_table.add_row(
-            inst.clean_hostname,
-            str(len(results.get("datasets", []))),
-            str(len(results.get("added", []))),
-            str(len(results.get("updated", []))),
-            str(len(results.get("unchanged", []))),
-            str(err_count),
+            clickable_host,
+            country_name or "Global",
+            str(datasets_cnt),
+            str(added),
+            str(updated),
+            str(unchanged),
+            str(deleted),
+            str(errors),
         )
 
     console.print(summary_table)
 
-    if total_harvest_errors > 0:
-        console.print(
-            "\n[yellow]⚠️ Encountered harvest errors on some records. "
-            "Run [bold]dartfx-nada errors --details[/bold] to inspect failure reasons.[/yellow]"
+    summary_panel_text = (
+        f"[bold cyan]Studies Processed: {overall_stats['datasets']}[/bold cyan]\n"
+        f"[bold green]Files Added (+): {overall_stats['added']}[/bold green]  |  "
+        f"[bold yellow]Files Updated (Δ): {overall_stats['updated']}[/bold yellow]  |  "
+        f"[dim cyan]Files Unchanged (=): {overall_stats['unchanged']}[/dim cyan]  |  "
+        f"[bold red]Files Deleted (-): {overall_stats['deleted']}[/bold red]  |  "
+        f"[bold red]Total Errors (!): {overall_stats['errors']}[/bold red]"
+    )
+
+    console.print(
+        Panel(
+            summary_panel_text,
+            title="[bold]Harvest Completed[/bold]",
+            border_style="green" if overall_stats["errors"] == 0 else "yellow",
         )
+    )
+
+    if all_errors:
+        console.print(f"\n[bold red]==== Harvesting Errors Report ({len(all_errors)} Failed) ====[/bold red]\n")
+        type_counts: dict[str, int] = {}
+        for err in all_errors:
+            reason_str = err.get("reason", "") if isinstance(err, dict) else str(err)
+            etype = classify_harvest_error(reason_str)
+            type_counts[etype] = type_counts.get(etype, 0) + 1
+
+        sum_err_table = Table(
+            title="Harvest Errors: Summary by Error Type",
+            header_style="bold red",
+            show_header=True,
+        )
+        sum_err_table.add_column("Error Category / Type", style="cyan", no_wrap=False)
+        sum_err_table.add_column("Count", justify="right", style="bold red")
+        sum_err_table.add_column("% of Total", justify="right", style="yellow")
+
+        for etype, count in sorted(type_counts.items(), key=lambda x: x[1], reverse=True):
+            pct = f"{(count / len(all_errors)) * 100:.1f}%"
+            sum_err_table.add_row(etype, str(count), pct)
+
+        console.print(sum_err_table)
+        console.print()
+
+        err_table = Table(title="Failed Records Details", show_header=True, header_style="bold yellow")
+        err_table.add_column("Study IDNO / Record", style="cyan", no_wrap=True)
+        err_table.add_column("Format", style="yellow", justify="center", no_wrap=True)
+        err_table.add_column("Error Category", style="magenta")
+        err_table.add_column("Error Reason / Details", style="bold red", no_wrap=False)
+
+        for err in all_errors:
+            if isinstance(err, dict):
+                pid_raw = err.get("pid") or err.get("key", "Unknown")
+                fmt_display = err.get("format", "-")
+                reason_display = err.get("reason", "Unknown error")
+                err_server = err.get("server") or (pid_raw.split(" (")[0] if " (" in str(pid_raw) else None)
+                dataset_url = err.get("url") or format_dataset_url(pid_raw, host=err_server)
+            else:
+                pid_raw = str(err)
+                fmt_display = "-"
+                reason_display = "Error occurred"
+                dataset_url = format_dataset_url(pid_raw)
+
+            cat_display = classify_harvest_error(reason_display)
+            pid_display = (
+                f"[link={dataset_url}]{pid_raw}[/link]" if dataset_url and pid_raw != "Unknown" else str(pid_raw)
+            )
+            err_table.add_row(pid_display, fmt_display, cat_display, reason_display)
+
+        console.print(err_table)
+        console.print()
+        console.print(
+            "[yellow]⚠️ Encountered harvest errors on some records. "
+            "Run [bold]dartfx-nada errors --details[/bold] to inspect failure reasons across manifests.[/yellow]\n"
+        )
+
+    return harvest_result
 
 
 if __name__ == "__main__":

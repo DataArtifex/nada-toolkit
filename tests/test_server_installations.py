@@ -353,3 +353,83 @@ def test_agris_monitor_server_additions() -> None:
     insts = [ServerInstallation.model_validate(s) for s in servers]
     hostnames = [inst.clean_hostname.lower() for inst in insts]
     assert hostnames == sorted(hostnames), "Servers should be sorted alphabetically by hostname"
+
+
+def test_cli_list_json_standardized_and_file(tmp_path: Path, monkeypatch) -> None:
+    import json
+
+    from dartfx.nada.cli import app
+
+    mock_insts = [
+        ServerInstallation(
+            name="Test NADA",
+            hostname="nada.test.org",
+            url="https://nada.test.org",
+            country="Testland",
+            country_code="TL",
+        ),
+    ]
+    monkeypatch.setattr("dartfx.nada.cli.fetch_nada_installations", lambda **_kwargs: mock_insts)
+
+    runner = CliRunner()
+    res = runner.invoke(app, ["list", "--json"])
+    assert res.exit_code == 0
+    data = json.loads(res.stdout)
+    assert len(data) == 1
+    assert data[0]["platform"] == "nada"
+    assert data[0]["hostname"] == "nada.test.org"
+    assert data[0]["url"] == "https://nada.test.org"
+
+    # Test file output
+    out_file = tmp_path / "nada_insts.json"
+    res_file = runner.invoke(app, ["list", "--json", "-o", str(out_file)])
+    assert res_file.exit_code == 0
+    assert out_file.exists()
+    saved = json.loads(out_file.read_text(encoding="utf-8"))
+    assert saved[0]["platform"] == "nada"
+
+
+def test_cli_harvest_json_output(tmp_path: Path, monkeypatch) -> None:
+    import json
+
+    from dartfx.nada.cli import app
+
+    mock_inst = [
+        ServerInstallation(
+            name="Mock NADA",
+            hostname="mock.nada.org",
+            url="https://mock.nada.org",
+            country="Global",
+        )
+    ]
+    monkeypatch.setattr("dartfx.nada.harvester.fetch_nada_installations", lambda **_kwargs: mock_inst)
+
+    class MockHarvester:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def sync(self, **_kwargs):
+            return {
+                "datasets": ["SURV-001"],
+                "added": ["SURV-001"],
+                "updated": [],
+                "deleted": [],
+                "unchanged": [],
+                "errors": [],
+            }
+
+    monkeypatch.setattr("dartfx.nada.harvester.ServerHarvester", MockHarvester)
+
+    runner = CliRunner()
+    res = runner.invoke(app, ["harvest", "--formats", "ddi", "--json", "-R", str(tmp_path)])
+    assert res.exit_code == 0
+    harvest_json = json.loads(res.stdout)
+    assert harvest_json["platform"] == "nada"
+    assert harvest_json["status"] == "success"
+    assert harvest_json["summary"]["datasets"] == 1
+    assert harvest_json["summary"]["studies"] == 1
+    assert harvest_json["summary"]["surveys"] == 1
+    assert harvest_json["summary"]["added"] == 1
+    assert harvest_json["summary"]["errors"] == 0
+    assert len(harvest_json["servers"]) == 1
+    assert harvest_json["servers"][0]["hostname"] == "mock.nada.org"

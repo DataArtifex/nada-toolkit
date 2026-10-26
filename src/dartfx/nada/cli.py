@@ -121,6 +121,29 @@ def list_installations(
         ),
     ] = None,
     format: Annotated[OutputFormat, typer.Option("--format", "-f", help="Output format")] = OutputFormat.TABLE,
+    json_output: Annotated[
+        bool,
+        typer.Option(
+            "--json",
+            help="Output results as JSON (shorthand for --format json).",
+        ),
+    ] = False,
+    markdown_output: Annotated[
+        bool,
+        typer.Option(
+            "--markdown",
+            "--md",
+            help="Output results as Markdown table (shorthand for --format markdown).",
+        ),
+    ] = False,
+    output: Annotated[
+        str | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Write output to a file instead of console (default: dartfx-nada.installations.txt|json|md|csv).",
+        ),
+    ] = None,
     limit: Annotated[int | None, typer.Option("--limit", "-l", help="Limit the number of results")] = None,
 ) -> None:
     """List known worldwide NADA installations."""
@@ -129,13 +152,53 @@ def list_installations(
     if limit:
         all_installations = all_installations[:limit]
 
-    if format == OutputFormat.JSON:
-        console.print_json(json.dumps([inst.model_dump(exclude_none=True) for inst in all_installations]))
+    if json_output:
+        effective_format = OutputFormat.JSON
+    elif markdown_output:
+        effective_format = OutputFormat.MARKDOWN
+    else:
+        effective_format = format
+
+    serialized_installations: list[dict[str, Any]] = []
+    for inst in all_installations:
+        data = inst.model_dump(exclude_none=True)
+        data["platform"] = "nada"
+        data["hostname"] = inst.clean_hostname or inst.hostname
+        data["url"] = inst.catalog_url or inst.url
+        serialized_installations.append(data)
+
+    out_path: Path | None = None
+    if output:
+        out_str = str(output).strip()
+        if out_str.lower() in ("auto", "__auto__", "-"):
+            ext_map = {
+                OutputFormat.JSON: "json",
+                OutputFormat.MARKDOWN: "md",
+                OutputFormat.MD: "md",
+                OutputFormat.CSV: "csv",
+                OutputFormat.TABLE: "txt",
+            }
+            ext = ext_map.get(effective_format, "txt")
+            out_path = Path(f"dartfx-nada.installations.{ext}")
+        else:
+            out_path = Path(out_str)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if effective_format == OutputFormat.JSON:
+        json_str = json.dumps(serialized_installations, indent=2, default=str)
+        if out_path:
+            out_path.write_text(json_str + "\n", encoding="utf-8")
+            console.print(f"[bold green]✓ Installations saved to:[/] {out_path}")
+        else:
+            console.print_json(json_str)
         return
 
-    if format == OutputFormat.CSV:
+    if effective_format == OutputFormat.CSV:
+        from io import StringIO
+
+        buf = StringIO()
         writer = csv.DictWriter(
-            sys.stdout,
+            buf,
             fieldnames=["name", "hostname", "country", "country_code", "version"],
         )
         writer.writeheader()
@@ -149,7 +212,15 @@ def list_installations(
                     "version": str(inst.version or ""),
                 }
             )
-    if format in (OutputFormat.MARKDOWN, OutputFormat.MD):
+        csv_text = buf.getvalue()
+        if out_path:
+            out_path.write_text(csv_text, encoding="utf-8")
+            console.print(f"[bold green]✓ Installations saved to:[/] {out_path}")
+        else:
+            sys.stdout.write(csv_text)
+        return
+
+    if effective_format in (OutputFormat.MARKDOWN, OutputFormat.MD):
         md_lines = [
             "| Repository / Organization | Hostname | Country | Code | Ver |",
             "|:---|:---|:---|:---:|:---:|",
@@ -161,9 +232,14 @@ def list_installations(
             host_link = f"[{host_val}]({url_val})" if url_val else host_val
             c_name = inst.country or "-"
             c_code = inst.country_code or "-"
-            ver_str = inst.version or "-"
+            ver_str = str(inst.version) if inst.version is not None else "-"
             md_lines.append(f"| {name_val} | {host_link} | {c_name} | {c_code} | {ver_str} |")
-        print("\n".join(md_lines))
+        md_text = "\n".join(md_lines) + "\n"
+        if out_path:
+            out_path.write_text(md_text, encoding="utf-8")
+            console.print(f"[bold green]✓ Installations saved to:[/] {out_path}")
+        else:
+            print(md_text, end="")
         return
 
     table = Table(title=f"Worldwide NADA Installations ({len(all_installations)} found)")
@@ -185,7 +261,15 @@ def list_installations(
             str(inst.version or "-"),
         )
 
-    console.print(table)
+    if out_path:
+        from rich.console import Console as FileConsole
+
+        fc = FileConsole(record=True, width=120)
+        fc.print(table)
+        out_path.write_text(fc.export_text(), encoding="utf-8")
+        console.print(f"[bold green]✓ Installations saved to:[/] {out_path}")
+    else:
+        console.print(table)
 
 
 # Backward compatibility alias
@@ -716,6 +800,14 @@ def stats(
             help="HTTP request timeout in seconds per server query (default: 10).",
         ),
     ] = 10,
+    workers: Annotated[
+        int,
+        typer.Option(
+            "--workers",
+            "-w",
+            help="Number of concurrent worker threads for querying servers (default: 8).",
+        ),
+    ] = 8,
     show_env: Annotated[
         bool,
         typer.Option(
@@ -803,6 +895,7 @@ def stats(
         cache_ttl_hours=float(cache_ttl),
         timeout=timeout,
         repo_root=Path(repo_dir) if repo_dir else None,
+        workers=workers,
         show_env=show_env,
         sort_by=sort,
         descending=descending,
@@ -846,6 +939,13 @@ def errors(
             help="Output format: table (default), json, or csv.",
         ),
     ] = OutputFormat.TABLE,
+    json_output: Annotated[
+        bool,
+        typer.Option(
+            "--json",
+            help="Output results as JSON (shorthand for --format json).",
+        ),
+    ] = False,
     by_format: Annotated[
         bool,
         typer.Option(
@@ -875,7 +975,8 @@ def errors(
     effective_repo_dir = repo_dir or repo_dir_opt
     analysis = analyze_harvest_errors(repo_dir=effective_repo_dir, server=server)
 
-    if format == OutputFormat.JSON:
+    effective_format = OutputFormat.JSON if json_output else format
+    if effective_format == OutputFormat.JSON:
         console.print_json(json.dumps(analysis, indent=2))
         return
 
