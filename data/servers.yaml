@@ -241,21 +241,6 @@
     - official-statistics
     - socio-economic
     - census
-- name: Statistics South Africa (Stats SA)
-  url: https://interactive.statssa.gov.za
-  country_code: ZA
-  custodian:
-    name: Statistics South Africa
-    url: https://www.statssa.gov.za
-  geocoverage:
-    level: national
-    description: South Africa
-    geonames:
-      - https://www.geonames.org/953987/
-  domains:
-    - official-statistics
-    - socio-economic
-    - census
 - name: Millennium Challenge Corporation
   url: https://mcc.icpsr.umich.edu/evaluations/index.php/catalog
   country_code: US
@@ -897,36 +882,6 @@
     - official-statistics
     - socio-economic
     - census
-- name: ILO Survey Catalogue
-  url: https://www.ilo.org/surveyLib
-  country_code: null
-  custodian:
-    name: International Labour Organization (ILO)
-    url: https://ilostat.ilo.org
-    ror: 03tebpn36
-  geocoverage:
-    level: global
-    description: Worldwide
-    geonames: []
-  domains:
-    - labor
-    - employment
-    - social-security
-- name: ILO Central Microdata Repository
-  url: http://www.ilo.org/surveydata
-  country_code: CH
-  custodian:
-    name: International Labour Organization (ILO)
-    url: https://www.ilo.org
-    ror: 03tebpn36
-  geocoverage:
-    level: global
-    description: Worldwide
-    geonames: []
-  domains:
-    - labor
-    - employment
-    - social-security
 - name: Instituto Nacional de Estatística (INE)
   url: https://www.ine.cv/dircaboverde
   country_code: CV
@@ -981,8 +936,12 @@
     - socio-economic
     - census
 - name: Zimbabwe National Statistic Agency (ZIMSTAT)
-  url: http://www.nada.zimstat.co.zw/nada
+  url: https://nada.zimstat.co.zw
   country_code: ZW
+  custodian:
+    name: Zimbabwe National Statistic Agency (ZIMSTAT)
+    url: https://www.zimstat.co.zw/
+    ror: 05g8b2c08
   geocoverage:
     level: national
     description: Zimbabwe
