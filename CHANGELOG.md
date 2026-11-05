@@ -38,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Pre-Commit Stash Conflict & Auto-Fix Rollback**:
+  - Configured `check-servers-md` pre-commit hook with `--check` to verify synchronization without writing during commit stages, preventing pre-commit stash conflicts and rollback loops when `data/servers.md` was unstaged.
+  - Added idempotency guard to `generate_servers_markdown` to avoid rewriting `data/servers.md` when content is identical.
+- **Server Registry Sorting & AGRIS Test Alignment**:
+  - Restored alphabetical sorting by hostname in `data/servers.yaml` following CAPMAS and NSA URL updates.
+  - Updated `test_agris_monitor_server_additions` to reflect the removal of inactive server `nada.anstat.ci` (`CI`).
 - **Zero-Survey Study Count Fallback** (`dartfx-nada info`, `dartfx-nada stats`):
   - Fixed an issue where catalogs with 0 microdata surveys and multiple other resource types (e.g. `censusindia.gov.in`) erroneously fell back to total resources in `Microdata Studies` and `fetch_server_stats`. Now correctly assigns `0` to microdata studies when `search_counts_by_type` is present and contains no `survey` key.
 - **Subpath URL Resolution in Harvester** (`dartfx-nada harvest`):

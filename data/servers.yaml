@@ -153,22 +153,6 @@
     - official-statistics
     - socio-economic
     - census
-- name: Central Data Catalog
-  url: https://metadata.capmas.gov.eg/en
-  country_code: EG
-  custodian:
-    name: Central Agency for Public Mobilization and Statistics (CAPMAS)
-    url: https://capmas.gov.eg/
-    ror: 040wqw555
-  geocoverage:
-    level: national
-    description: Egypt
-    geonames:
-      - https://www.geonames.org/357994/
-  domains:
-    - official-statistics
-    - socio-economic
-    - census
 - name: Institut national d'études démographiques (INED)
   url: https://data.ined.fr
   country_code: FR
@@ -241,6 +225,22 @@
     description: United States
     geonames:
       - https://www.geonames.org/6252001/
+  domains:
+    - official-statistics
+    - socio-economic
+    - census
+- name: Central Data Catalog
+  url: https://metadata.capmas.gov.eg/en
+  country_code: EG
+  custodian:
+    name: Central Agency for Public Mobilization and Statistics (CAPMAS)
+    url: https://capmas.gov.eg/
+    ror: 040wqw555
+  geocoverage:
+    level: national
+    description: Egypt
+    geonames:
+      - https://www.geonames.org/357994/
   domains:
     - official-statistics
     - socio-economic
@@ -427,6 +427,21 @@
     description: Cambodia
     geonames:
       - https://www.geonames.org/1831722/
+  domains:
+    - official-statistics
+    - socio-economic
+    - census
+- name: Namibia Statistics Agency (NSA)
+  url: https://microdata.nsanamibia.com
+  country_code: NA
+  custodian:
+    name: Namibia Statistics Agency (NSA)
+    url: https://nsanamibia.com/
+  geocoverage:
+    level: national
+    description: Namibia
+    geonames:
+      - https://www.geonames.org/3355338/
   domains:
     - official-statistics
     - socio-economic
@@ -637,21 +652,6 @@
     - socio-economic
     - census
     - demography
-- name: Namibia Statistics Agency (NSA)
-  url: https://microdata.nsanamibia.com
-  country_code: NA
-  custodian:
-    name: Namibia Statistics Agency (NSA)
-    url: https://nsanamibia.com/
-  geocoverage:
-    level: national
-    description: Namibia
-    geonames:
-      - https://www.geonames.org/3355338/
-  domains:
-    - official-statistics
-    - socio-economic
-    - census
 - name: Institut National de la Statistique (INS)
   url: https://nada.stat.cm
   country_code: CM
@@ -704,6 +704,22 @@
     - socio-economic
     - census
     - living-standards
+- name: Zimbabwe National Statistic Agency (ZIMSTAT)
+  url: https://nada.zimstat.co.zw
+  country_code: ZW
+  custodian:
+    name: Zimbabwe National Statistic Agency (ZIMSTAT)
+    url: https://www.zimstat.co.zw/
+    ror: 05g8b2c08
+  geocoverage:
+    level: national
+    description: Zimbabwe
+    geonames:
+      - https://www.geonames.org/878675/
+  domains:
+    - official-statistics
+    - socio-economic
+    - census
 - name: National Statistics Office (NSO)
   url: https://psada.psa.gov.ph
   country_code: PH
@@ -868,22 +884,6 @@
     description: Burundi
     geonames:
       - https://www.geonames.org/433561/
-  domains:
-    - official-statistics
-    - socio-economic
-    - census
-- name: Zimbabwe National Statistic Agency (ZIMSTAT)
-  url: https://nada.zimstat.co.zw
-  country_code: ZW
-  custodian:
-    name: Zimbabwe National Statistic Agency (ZIMSTAT)
-    url: https://www.zimstat.co.zw/
-    ror: 05g8b2c08
-  geocoverage:
-    level: national
-    description: Zimbabwe
-    geonames:
-      - https://www.geonames.org/878675/
   domains:
     - official-statistics
     - socio-economic

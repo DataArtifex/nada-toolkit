@@ -333,8 +333,8 @@ def test_agris_monitor_server_additions() -> None:
     """Verify that servers identified on the AGRIS monitor are present in bundled servers.yaml and sorted."""
     servers = load_bundled_servers_yaml()
     country_codes = {s.get("country_code") for s in servers}
-    # Check that new countries from the AGRIS monitor are present
-    for code in ["CV", "GM", "GN", "MG", "ZM", "BJ", "BF", "CI", "ML", "NP", "NG", "SL", "TZ"]:
+    # Check that new countries from the AGRIS monitor are present (CI omitted as nada.anstat.ci is inactive)
+    for code in ["CV", "GM", "GN", "MG", "ZM", "BJ", "BF", "ML", "NP", "NG", "SL", "TZ"]:
         assert code in country_codes, f"Expected {code} in servers.yaml"
 
     # Verify Cabo Verde, Gambia, and Zambia entries

@@ -167,6 +167,9 @@ def generate_servers_markdown(
 
     markdown_content = render_servers_markdown(data)
 
+    if dest_md.is_file() and dest_md.read_text(encoding="utf-8") == markdown_content:
+        return dest_md, markdown_content
+
     dest_md.parent.mkdir(parents=True, exist_ok=True)
     dest_md.write_text(markdown_content, encoding="utf-8")
     return dest_md, markdown_content
