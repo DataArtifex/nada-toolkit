@@ -154,7 +154,7 @@
     - socio-economic
     - census
 - name: Central Data Catalog
-  url: https://censusinfo.capmas.gov.eg/metadata-en-v4.2
+  url: https://metadata.capmas.gov.eg/en
   country_code: EG
   custodian:
     name: Central Agency for Public Mobilization and Statistics (CAPMAS)
@@ -169,18 +169,6 @@
     - official-statistics
     - socio-economic
     - census
-- name: IFAKARA Health Institute
-  url: https://data.ihi.or.tz
-  country_code: TZ
-  geocoverage:
-    level: national
-    description: Tanzania
-    geonames:
-      - https://www.geonames.org/149590/
-  domains:
-    - health
-    - biomedical
-    - epidemiology
 - name: Institut national d'études démographiques (INED)
   url: https://data.ined.fr
   country_code: FR
@@ -604,36 +592,6 @@
     - official-statistics
     - socio-economic
     - census
-- name: Agence Nationale de la Statistique (ANStat)
-  url: https://nada.anstat.ci
-  country_code: CI
-  custodian:
-    name: Agence Nationale de la Statistique (ANStat)
-    url: https://anstat.ci/
-  geocoverage:
-    level: national
-    description: Côte d'Ivoire
-    geonames:
-      - https://www.geonames.org/2287781/
-  domains:
-    - official-statistics
-    - socio-economic
-    - census
-- name: Central Bank of Nigeria (CBN)
-  url: https://nada.cbn.gov.ng
-  country_code: NG
-  custodian:
-    name: Central Bank of Nigeria
-    url: https://www.cbn.gov.ng
-  geocoverage:
-    level: national
-    description: Nigeria
-    geonames:
-      - https://www.geonames.org/2328926/
-  domains:
-    - macroeconomics
-    - banking
-    - finance
 - name: Institut National de la Statistique (INS)
   url: http://nada.ins.tn
   country_code: TN
@@ -680,8 +638,11 @@
     - census
     - demography
 - name: Namibia Statistics Agency (NSA)
-  url: https://nada.nsa.org.na
+  url: https://microdata.nsanamibia.com
   country_code: NA
+  custodian:
+    name: Namibia Statistics Agency (NSA)
+    url: https://nsanamibia.com/
   geocoverage:
     level: national
     description: Namibia
@@ -715,18 +676,6 @@
     - official-statistics
     - socio-economic
     - census
-- name: Central Statistics Office (CSO)
-  url: https://nada.statsmauritius.govmu.org
-  country_code: MU
-  geocoverage:
-    level: national
-    description: Mauritius
-    geonames:
-      - https://www.geonames.org/934292/
-  domains:
-    - official-statistics
-    - socio-economic
-    - census
 - name: University of Cape Coast (UCC)
   url: https://nada.ucc.edu.gh
   country_code: GH
@@ -738,18 +687,6 @@
   domains:
     - education
     - socio-economic
-- name: Centre for Sustainable Development (CESDEV)
-  url: http://nada.ui.edu.ng
-  country_code: NG
-  geocoverage:
-    level: national
-    description: Nigeria
-    geonames:
-      - https://www.geonames.org/2328926/
-  domains:
-    - official-statistics
-    - socio-economic
-    - census
 - name: Zambia Statistics Agency (ZamStats)
   url: https://nada.zamstats.gov.zm
   country_code: ZM
@@ -983,18 +920,6 @@
     description: Niger
     geonames:
       - https://www.geonames.org/2440489/
-  domains:
-    - official-statistics
-    - socio-economic
-    - census
-- name: Central Statistics Office
-  url: http://yemen-cso.microdatahub.com
-  country_code: YE
-  geocoverage:
-    level: national
-    description: Yemen
-    geonames:
-      - https://www.geonames.org/69543/
   domains:
     - official-statistics
     - socio-economic
